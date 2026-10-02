@@ -9,15 +9,18 @@ there is no server and no database, so it runs on Vercel's free tier.
 - **Timer**: Focus, Short break and Long break, each with a length you set
   (1 to 180 minutes) from the stepper under the timer or in Settings. A long
   break is suggested after every 4 focus sessions (also adjustable).
-- **Rewards**: finishing a focus session hatches one of 12 pixel animals
-  (6 common, 4 rare, 2 legendary). Skipping or resetting a focus session hatches
-  nothing. Longer sessions improve the odds of rarer animals, and the last
-  session before a long break always hatches a rare or better.
+- **Rewards**: finishing a focus session hatches one of 42 pixel animals
+  (20 common, 15 rare, 7 legendary), from pets and farm animals to wildlife,
+  including breeds such as the Shiba Inu and Siamese cat. Skipping or resetting
+  a focus session hatches nothing. Longer sessions improve the odds of rarer
+  animals, and the last session before a long break always hatches a rare or
+  better. Every animal you have hatched walks along the top of the Spotify bar.
 - **History**: a bar chart of completed pomodoros by day (7 days), week
   (8 weeks, Monday to Sunday) or month (6 months), with arrows to look further back.
 - **Tasks**: add tasks with an estimate, pick one, and finished sessions count toward it.
-- **Spotify**: play, pause, skip, and save or remove the current song from
-  Liked Songs.
+- **Spotify**: play, pause, skip, shuffle, save or remove the current song from
+  Liked Songs, and start any of your playlists or your Liked Songs from the
+  playlist button.
 - Light and dark mode, colours that change with the timer mode, a soft chime,
   the time in the browser tab title, **Space** to start or pause, **Alt+S** to skip.
 
@@ -56,10 +59,15 @@ the account that owns the app must have **Spotify Premium**.
 4. Copy the **Client ID** from the app's settings and give it to the site in
    one of two ways:
    - On Vercel: **Project Settings > Environment Variables**, add
-     `VITE_SPOTIFY_CLIENT_ID` with the Client ID as its value, then redeploy.
-     (Locally: copy `.env.example` to `.env.local` and paste it there.)
-   - Or skip the variable and paste the Client ID into **Settings > Spotify**
-     on the site itself. It is then remembered in that browser only.
+     `VITE_SPOTIFY_CLIENT_ID` with the Client ID as its value (no quotes),
+     then redeploy. The ID is built into the site when Vercel builds it, so
+     saving the variable alone changes nothing.
+     (Locally: create a file named `.env.local` in this folder containing
+     `VITE_SPOTIFY_CLIENT_ID=your-client-id`, then restart `npm run dev`.)
+   - Or paste the Client ID into **Settings > Spotify** on the site itself. It
+     is then remembered in that browser only, and takes priority over the
+     built-in one, so it can also fix a wrong built-in ID. Clear the box to go
+     back to the built-in ID.
 5. On the site, press **Connect Spotify** and approve.
 
 The Client ID is not a secret; it is safe in the page. No client secret is used.
@@ -77,6 +85,12 @@ Things to know:
   account there too.
 - **Use your main Vercel address.** Preview deployments get a different address
   each time, which will not match the redirect URI you registered.
+- **"client_id: Invalid"** on Spotify's page means Spotify has no app with that
+  Client ID. Check you copied the Client ID, not the Client Secret (both are 32
+  letters and numbers). Press Back to return to the site.
+- **Reconnect after updates that add permissions.** If the playlist list asks
+  for a new permission, go to **Settings**, press **Disconnect Spotify**, then
+  connect again.
 
 ## Changing things
 
@@ -84,8 +98,11 @@ Things to know:
 | --- | --- |
 | Animals, their pixels and colours, the odds | `src/animals.js` |
 | Colours for each mode, light and dark | `src/index.css` |
-| The timer, tasks, chart, collection and Spotify bar | `src/App.jsx` |
+| The timer, tasks, chart, collection and Settings | `src/App.jsx` |
+| The Spotify bar and playlist list | `src/SpotifyBar.jsx` |
 | How the site talks to Spotify | `src/spotify.js` |
 
 Each animal is 16 rows of 16 characters, one character per pixel, so you can
-draw a new one in a text editor.
+draw a new one in a text editor. For a breed or colour variant of an existing
+animal, add one `variant(...)` line at the bottom of `ANIMALS` with a new
+palette; it reuses that animal's pixels.
