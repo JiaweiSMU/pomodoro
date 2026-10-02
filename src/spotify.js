@@ -36,18 +36,21 @@ const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID || '').trim()
 
 export const hasBuiltInClientId = () => ENV_CLIENT_ID !== ''
 
+// A Client ID typed in Settings wins over the built-in one, so a wrong
+// built-in ID can be corrected without a rebuild.
 export function getClientId() {
-  if (ENV_CLIENT_ID) return ENV_CLIENT_ID
   try {
-    return localStorage.getItem(CLIENT_ID_KEY) || ''
+    return localStorage.getItem(CLIENT_ID_KEY) || ENV_CLIENT_ID
   } catch {
-    return ''
+    return ENV_CLIENT_ID
   }
 }
 
 export function setClientId(id) {
   try {
-    localStorage.setItem(CLIENT_ID_KEY, id.trim())
+    const trimmed = id.trim()
+    if (!trimmed || trimmed === ENV_CLIENT_ID) localStorage.removeItem(CLIENT_ID_KEY)
+    else localStorage.setItem(CLIENT_ID_KEY, trimmed)
   } catch {
     /* storage unavailable */
   }
