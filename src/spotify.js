@@ -273,10 +273,9 @@ export async function getPlayback() {
   }
 }
 
-// Resume playback, or start a playlist when given its URI. If no device is
-// active, wake the first available one.
-export async function play(contextUri) {
-  const body = contextUri ? { context_uri: contextUri } : undefined
+// Resume playback, or start something new when given a body such as
+// { context_uri } or { uris }. If no device is active, wake the first available one.
+export async function play(body) {
   try {
     await request('PUT', '/me/player/play', { body })
   } catch (err) {
@@ -295,6 +294,15 @@ export const pause = () => request('PUT', '/me/player/pause')
 export const next = () => request('POST', '/me/player/next')
 export const previous = () => request('POST', '/me/player/previous')
 export const setShuffle = (on) => request('PUT', '/me/player/shuffle', { query: { state: on } })
+
+// Liked Songs cannot be started as a playlist, so queue the most recent ones.
+// ponytail: newest 50 liked songs only; page through /me/tracks for more.
+export async function playLiked() {
+  const data = await request('GET', '/me/tracks', { query: { limit: 50 } })
+  const uris = (data?.items || []).map((item) => item?.track?.uri).filter(Boolean)
+  if (!uris.length) throw new Error('You have no Liked Songs yet.')
+  await play({ uris })
+}
 
 // ponytail: first 50 playlists only; follow `next` if anyone has more.
 export async function getPlaylists() {

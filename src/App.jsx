@@ -964,7 +964,11 @@ function useSpotify() {
         .then(setPlaylists)
         .catch((err) => fail(err, setPlaylistsError))
     },
-    playPlaylist: (uri) => run(() => spotify.play(uri), () => setPlayback((p) => p && { ...p, isPlaying: true })),
+    playPlaylist: (uri) =>
+      run(
+        () => (uri ? spotify.play({ context_uri: uri }) : spotify.playLiked()),
+        () => setPlayback((p) => p && { ...p, isPlaying: true }),
+      ),
     previous: () => run(spotify.previous),
     toggleLiked: () => {
       if (!uri || liked == null) return
@@ -1068,12 +1072,11 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
             <p className="px-2 py-1 text-sm text-muted">{sp.playlistsError}</p>
           ) : sp.playlists == null ? (
             <p className="px-2 py-1 text-sm text-muted">Loading…</p>
-          ) : !sp.playlists.length ? (
-            <p className="px-2 py-1 text-sm text-muted">No playlists found.</p>
           ) : (
             <ul>
-              {sp.playlists.map((p) => (
-                <li key={p.uri}>
+              {/* Liked Songs has no playlist URI; an empty uri means "play Liked Songs". */}
+              {[{ uri: '', name: 'Liked Songs', liked: true }, ...sp.playlists].map((p) => (
+                <li key={p.uri || 'liked'}>
                   <button
                     type="button"
                     popoverTarget="spotify-playlists"
@@ -1081,7 +1084,11 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
                     onClick={() => sp.playPlaylist(p.uri)}
                     className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent-soft"
                   >
-                    {p.art ? (
+                    {p.liked ? (
+                      <span className="grid size-9 shrink-0 place-items-center rounded bg-accent text-on-accent">
+                        <Heart size={16} fill="currentColor" aria-hidden="true" />
+                      </span>
+                    ) : p.art ? (
                       <img src={p.art} alt="" className="size-9 shrink-0 rounded" />
                     ) : (
                       <span className="grid size-9 shrink-0 place-items-center rounded bg-accent-soft text-muted">
