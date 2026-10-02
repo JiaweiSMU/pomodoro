@@ -298,13 +298,12 @@ export const next = () => request('POST', '/me/player/next')
 export const previous = () => request('POST', '/me/player/previous')
 export const setShuffle = (on) => request('PUT', '/me/player/shuffle', { query: { state: on } })
 
-// Liked Songs cannot be started as a playlist, so queue the most recent ones.
-// ponytail: newest 50 liked songs only; page through /me/tracks for more.
+// Liked Songs has no playlist URI, but Spotify plays it as the user's
+// "collection" context. Sending a bare list of track URIs instead returns 204
+// yet stops playback on many devices.
 export async function playLiked() {
-  const data = await request('GET', '/me/tracks', { query: { limit: 50 } })
-  const uris = (data?.items || []).map((item) => item?.track?.uri).filter(Boolean)
-  if (!uris.length) throw new Error('You have no Liked Songs yet.')
-  await play({ uris })
+  const me = await request('GET', '/me')
+  await play({ context_uri: `spotify:user:${me.id}:collection` })
 }
 
 // ponytail: first 50 playlists only; follow `next` if anyone has more.
