@@ -141,7 +141,8 @@ input[type='number'] {
   appearance: textfield;
 }
 
-input[type='range'] {
+input[type='range'],
+input[type='checkbox'] {
   accent-color: var(--accent);
 }
 
