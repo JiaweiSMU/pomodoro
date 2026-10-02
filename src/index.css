@@ -1,0 +1,188 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --font-sans: 'Rubik Variable', system-ui, sans-serif;
+  --font-pixel: 'Jersey 20', ui-monospace, monospace;
+}
+
+/* Colours shift with the timer mode: tomato for focus, sage for a short
+   break, slate blue for a long break. Each has a light and a dark version. */
+:root,
+:root[data-mode='focus'] {
+  --bg: #fbeee9;
+  --surface: #fff9f6;
+  --ink: #2b1a16;
+  --muted: #7d5f56;
+  --line: #ead2c8;
+  --accent: #cf4027;
+  --accent-deep: #9e2c18;
+  --accent-soft: #f7d9cf;
+  --on-accent: #ffffff;
+}
+:root[data-mode='short'] {
+  --bg: #e8f2ee;
+  --surface: #f6fbf9;
+  --ink: #13251e;
+  --muted: #4f7066;
+  --line: #cbdfd6;
+  --accent: #23806a;
+  --accent-deep: #175a4a;
+  --accent-soft: #cde7dd;
+  --on-accent: #ffffff;
+}
+:root[data-mode='long'] {
+  --bg: #e8edf6;
+  --surface: #f6f8fc;
+  --ink: #162033;
+  --muted: #5a6883;
+  --line: #cdd7e7;
+  --accent: #4468b0;
+  --accent-deep: #2e4a85;
+  --accent-soft: #d2ddf1;
+  --on-accent: #ffffff;
+}
+:root[data-theme='dark'],
+:root[data-theme='dark'][data-mode='focus'] {
+  --bg: #1e1411;
+  --surface: #2a1c18;
+  --ink: #f8e9e3;
+  --muted: #bc9b90;
+  --line: #47312a;
+  --accent: #f26b50;
+  --accent-deep: #b5432d;
+  --accent-soft: #4a2a22;
+  --on-accent: #2a0f08;
+}
+:root[data-theme='dark'][data-mode='short'] {
+  --bg: #0f1b18;
+  --surface: #172622;
+  --ink: #e3f2ec;
+  --muted: #8fb1a5;
+  --line: #27413a;
+  --accent: #52c2a6;
+  --accent-deep: #2f8c75;
+  --accent-soft: #1e3f37;
+  --on-accent: #06241c;
+}
+:root[data-theme='dark'][data-mode='long'] {
+  --bg: #11151e;
+  --surface: #1a202d;
+  --ink: #e5ebf6;
+  --muted: #95a3bc;
+  --line: #2c3548;
+  --accent: #7fa2ea;
+  --accent-deep: #4f71b8;
+  --accent-soft: #24324f;
+  --on-accent: #0b1730;
+}
+
+html {
+  color-scheme: light;
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  transition: background-color 600ms ease, color 300ms ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* The one chunky, game-style control: it presses down like a physical key. */
+.key {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 6px;
+  box-shadow: 0 5px 0 var(--accent-deep);
+  transition: transform 80ms ease, box-shadow 80ms ease, background-color 600ms ease;
+}
+.key:active,
+.key[data-pressed='true'] {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--accent-deep);
+}
+
+.ring-progress {
+  transition: stroke-dashoffset 300ms linear, stroke 600ms ease;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+/* Hatching: the egg rattles, then the animal pops in at pixel-sized steps. */
+@keyframes rattle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(6deg); }
+}
+@keyframes pop-in {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes fade-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+.hatch-egg {
+  animation: rattle 500ms steps(5) 2, fade-out 1ms linear 1000ms forwards;
+}
+.hatch-animal {
+  animation: pop-in 420ms steps(6) 1000ms backwards;
+}
+.hatch-text {
+  animation: fade-in 300ms ease 1300ms backwards;
+}
+.overlay {
+  animation: fade-in 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
