@@ -177,6 +177,14 @@ input[type='range'] {
   animation: fade-in 160ms ease;
 }
 
+/* Playlist picker: a native popover pinned above the Spotify bar's right end. */
+.playlists {
+  inset: auto 1rem 5rem auto;
+  margin: 0;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(24rem, calc(100dvh - 7rem));
+}
+
 /* Hatched animals pace back and forth above the Spotify bar, hopping as they go. */
 .critter {
   position: absolute;

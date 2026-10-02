@@ -14,6 +14,8 @@ const SCOPES = [
   'user-read-currently-playing',
   'user-library-read',
   'user-library-modify',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ]
 
 const TOKENS_KEY = 'pomodoro.spotify.tokens'
@@ -258,6 +260,7 @@ export async function getPlayback() {
   const item = data.item
   return {
     isPlaying: Boolean(data.is_playing),
+    shuffle: Boolean(data.shuffle_state),
     device: data.device?.name || '',
     track: item
       ? {
@@ -270,10 +273,12 @@ export async function getPlayback() {
   }
 }
 
-// Resume playback. If no device is active, wake the first available one.
-export async function play() {
+// Resume playback, or start a playlist when given its URI. If no device is
+// active, wake the first available one.
+export async function play(contextUri) {
+  const body = contextUri ? { context_uri: contextUri } : undefined
   try {
-    await request('PUT', '/me/player/play')
+    await request('PUT', '/me/player/play', { body })
   } catch (err) {
     if (err.status !== 404) throw err
     const data = await request('GET', '/me/player/devices')
@@ -281,13 +286,23 @@ export async function play() {
     if (!device) {
       throw new SpotifyError(404, 'NO_DEVICE', 'Open Spotify on your phone or computer, then press play here.')
     }
-    await request('PUT', '/me/player', { body: { device_ids: [device.id], play: true } })
+    if (body) await request('PUT', '/me/player/play', { query: { device_id: device.id }, body })
+    else await request('PUT', '/me/player', { body: { device_ids: [device.id], play: true } })
   }
 }
 
 export const pause = () => request('PUT', '/me/player/pause')
 export const next = () => request('POST', '/me/player/next')
 export const previous = () => request('POST', '/me/player/previous')
+export const setShuffle = (on) => request('PUT', '/me/player/shuffle', { query: { state: on } })
+
+// ponytail: first 50 playlists only; follow `next` if anyone has more.
+export async function getPlaylists() {
+  const data = await request('GET', '/me/playlists', { query: { limit: 50 } })
+  return (data?.items || [])
+    .filter(Boolean)
+    .map((p) => ({ uri: p.uri, name: p.name, art: p.images?.at(-1)?.url || '' }))
+}
 
 // Liked Songs
 export async function isSaved(uri) {
@@ -300,6 +315,10 @@ export const unsave = (uri) => request('DELETE', '/me/library', { query: { uris:
 // Turn an error into a sentence that says what to do about it.
 export function explain(err) {
   if (err.reason === 'NO_DEVICE' || err.reason === 'NOT_CONNECTED') return err.message
+  // Tokens from before playlists were added lack that permission.
+  if (/scope|permission/i.test(err.message || '')) {
+    return 'Spotify needs a new permission for this. Disconnect and connect Spotify again in Settings.'
+  }
   if (err.status === 429) return 'Spotify is rate-limiting this app. Controls will be back shortly.'
   if (err.status === 403 && err.reason === 'PREMIUM_REQUIRED') {
     return 'Spotify only allows playback control on Premium accounts.'
