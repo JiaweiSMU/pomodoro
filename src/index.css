@@ -177,7 +177,30 @@ input[type='range'] {
   animation: fade-in 160ms ease;
 }
 
+/* Hatched animals pace back and forth above the Spotify bar, hopping as they go. */
+.critter {
+  position: absolute;
+  bottom: 0;
+  left: var(--x);
+  animation: roam var(--dur) linear var(--start) infinite alternate;
+}
+.critter svg {
+  animation: hop 500ms steps(2) infinite;
+}
+@keyframes roam {
+  from { left: 0; }
+  to { left: calc(100% - 32px); }
+}
+@keyframes hop {
+  50% { transform: translateY(-2px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .critter,
+  .critter svg {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {
