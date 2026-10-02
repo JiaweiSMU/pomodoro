@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Copy,
   Heart,
+  ListMusic,
   Minus,
   Moon,
   Music2,
@@ -13,6 +14,7 @@ import {
   Plus,
   RotateCcw,
   Settings,
+  Shuffle,
   SkipBack,
   SkipForward,
   Sun,
@@ -844,6 +846,8 @@ function useSpotify() {
   const [connected, setConnected] = useState(spotify.isConnected)
   const [playback, setPlayback] = useState(null)
   const [liked, setLiked] = useState(null) // null = not known yet
+  const [playlists, setPlaylists] = useState(null) // null = loading
+  const [playlistsError, setPlaylistsError] = useState('')
   // Two kinds of problem: one from the background check of what is playing,
   // which clears itself on the next good check, and one from a button press,
   // which stays until the next press so there is time to read it.
@@ -937,6 +941,7 @@ function useSpotify() {
       setConnected(false)
       setPlayback(null)
       setLiked(null)
+      setPlaylists(null)
       setPollError('')
       setCommandError('')
       likedFor.current = null
@@ -946,6 +951,20 @@ function useSpotify() {
         ? run(spotify.pause, () => setPlayback((p) => p && { ...p, isPlaying: false }))
         : run(spotify.play, () => setPlayback((p) => p && { ...p, isPlaying: true })),
     next: () => run(spotify.next),
+    toggleShuffle: () => {
+      const on = !playback?.shuffle
+      run(() => spotify.setShuffle(on), () => setPlayback((p) => p && { ...p, shuffle: on }))
+    },
+    playlists,
+    playlistsError,
+    loadPlaylists: () => {
+      setPlaylistsError('')
+      spotify
+        .getPlaylists()
+        .then(setPlaylists)
+        .catch((err) => fail(err, setPlaylistsError))
+    },
+    playPlaylist: (uri) => run(() => spotify.play(uri), () => setPlayback((p) => p && { ...p, isPlaying: true })),
     previous: () => run(spotify.previous),
     toggleLiked: () => {
       if (!uri || liked == null) return
@@ -969,7 +988,7 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
   if (!sp.clientId) {
     body = (
       <>
-        <p className="min-w-0 flex-1 text-sm text-muted">Play, pause, skip and unlike your Spotify music from here.</p>
+        <p className="min-w-0 flex-1 text-sm text-muted">Play, pause, skip, shuffle and pick playlists from here.</p>
         <button type="button" onClick={onOpenSettings} className="h-10 shrink-0 rounded-md border border-line px-3 text-sm font-medium hover:bg-accent-soft">
           Set up Spotify
         </button>
@@ -979,7 +998,7 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
     body = (
       <>
         <p className="min-w-0 flex-1 text-sm text-muted" role="status">
-          {sp.error || 'Play, pause, skip and unlike your Spotify music from here.'}
+          {sp.error || 'Play, pause, skip, shuffle and pick playlists from here.'}
         </p>
         <button type="button" onClick={sp.connect} className="h-10 shrink-0 rounded-md bg-accent px-3 text-sm font-medium text-on-accent">
           Connect Spotify
@@ -1025,6 +1044,56 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
           <IconButton label="Next track" onClick={sp.next}>
             <SkipForward size={20} aria-hidden="true" />
           </IconButton>
+          <IconButton
+            label={sp.playback?.shuffle ? 'Turn shuffle off' : 'Turn shuffle on'}
+            aria-pressed={Boolean(sp.playback?.shuffle)}
+            disabled={!sp.playback}
+            onClick={sp.toggleShuffle}
+            active={Boolean(sp.playback?.shuffle)}
+            display="hidden sm:grid"
+          >
+            <Shuffle size={20} aria-hidden="true" />
+          </IconButton>
+          <IconButton label="Playlists" popoverTarget="spotify-playlists" onClick={sp.loadPlaylists}>
+            <ListMusic size={20} aria-hidden="true" />
+          </IconButton>
+        </div>
+        <div
+          id="spotify-playlists"
+          popover="auto"
+          className="playlists overflow-y-auto rounded-lg border border-line bg-surface p-2 text-ink shadow-lg"
+        >
+          <h2 className="px-2 py-1 text-sm font-medium">Your playlists</h2>
+          {sp.playlistsError ? (
+            <p className="px-2 py-1 text-sm text-muted">{sp.playlistsError}</p>
+          ) : sp.playlists == null ? (
+            <p className="px-2 py-1 text-sm text-muted">Loading…</p>
+          ) : !sp.playlists.length ? (
+            <p className="px-2 py-1 text-sm text-muted">No playlists found.</p>
+          ) : (
+            <ul>
+              {sp.playlists.map((p) => (
+                <li key={p.uri}>
+                  <button
+                    type="button"
+                    popoverTarget="spotify-playlists"
+                    popoverTargetAction="hide"
+                    onClick={() => sp.playPlaylist(p.uri)}
+                    className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent-soft"
+                  >
+                    {p.art ? (
+                      <img src={p.art} alt="" className="size-9 shrink-0 rounded" />
+                    ) : (
+                      <span className="grid size-9 shrink-0 place-items-center rounded bg-accent-soft text-muted">
+                        <Music2 size={16} aria-hidden="true" />
+                      </span>
+                    )}
+                    <span className="truncate">{p.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </>
     )
