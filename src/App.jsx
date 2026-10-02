@@ -1092,22 +1092,18 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
             Spotify does not accept "localhost". Open this page at http://127.0.0.1:{window.location.port} instead.
           </p>
         )}
-        {spotify.hasBuiltInClientId() ? (
-          <p className="mt-2">The Client ID is built into this site.</p>
-        ) : (
-          <label className="mt-2 block">
-            Client ID, from your app at developer.spotify.com/dashboard
-            <input
-              value={clientIdDraft}
-              onChange={(e) => setClientIdDraft(e.target.value)}
-              onBlur={() => sp.saveClientId(clientIdDraft)}
-              placeholder="32 letters and numbers"
-              spellCheck="false"
-              autoComplete="off"
-              className="mt-1 h-10 w-full rounded-md border border-line bg-surface px-3 font-mono text-xs"
-            />
-          </label>
-        )}
+        <label className="mt-2 block">
+          Client ID, from your app at developer.spotify.com/dashboard
+          <input
+            value={clientIdDraft}
+            onChange={(e) => setClientIdDraft(e.target.value)}
+            onBlur={() => sp.saveClientId(clientIdDraft)}
+            placeholder="32 letters and numbers"
+            spellCheck="false"
+            autoComplete="off"
+            className="mt-1 h-10 w-full rounded-md border border-line bg-surface px-3 font-mono text-xs"
+          />
+        </label>
         <p className="mt-3">Add this redirect URI to your Spotify app:</p>
         <div className="mt-1 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-bg px-3 py-2 text-xs">{redirect}</code>
