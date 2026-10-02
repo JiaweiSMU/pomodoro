@@ -723,6 +723,32 @@ function History({ history }) {
 }
 
 /* ----------------------------------------------------------------------------
+   Hatched animals wandering along the top of the Spotify bar
+---------------------------------------------------------------------------- */
+
+function Meadow({ history }) {
+  const animals = useMemo(
+    () => [...new Set(history.map((h) => h.animal))].map((id) => ANIMAL_BY_ID[id]).filter(Boolean),
+    [history],
+  )
+  if (!animals.length) return null
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-full h-8 overflow-hidden">
+      {animals.map((animal, i) => (
+        // Speed, start point and resting spot are spread out by index so the animals do not move in step.
+        <div
+          key={animal.id}
+          className="critter"
+          style={{ '--dur': `${16 + ((i * 7) % 13)}s`, '--start': `${-i * 3.7}s`, '--x': `${(i * 37) % 90}%` }}
+        >
+          <Sprite sprite={animal} size={32} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ----------------------------------------------------------------------------
    Collection of hatched animals
 ---------------------------------------------------------------------------- */
 
@@ -935,7 +961,7 @@ function useSpotify() {
   }
 }
 
-function SpotifyBar({ sp, onOpenSettings }) {
+function SpotifyBar({ sp, onOpenSettings, children }) {
   const track = sp.playback?.track
   const canLike = Boolean(track) && sp.liked != null
 
@@ -1006,6 +1032,7 @@ function SpotifyBar({ sp, onOpenSettings }) {
 
   return (
     <aside aria-label="Spotify" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface">
+      {children}
       <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">{body}</div>
     </aside>
   )
@@ -1305,7 +1332,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh pb-24">
+    <div className="min-h-dvh pb-32">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-2">
           <Sprite sprite={EGG} size={32} />
@@ -1437,7 +1464,9 @@ export default function App() {
         </div>
       </main>
 
-      <SpotifyBar sp={sp} onOpenSettings={() => setSettingsOpen(true)} />
+      <SpotifyBar sp={sp} onOpenSettings={() => setSettingsOpen(true)}>
+        <Meadow history={history} />
+      </SpotifyBar>
 
       {settingsOpen && (
         <SettingsModal
