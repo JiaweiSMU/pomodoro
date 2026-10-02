@@ -30,11 +30,7 @@ import * as spotify from './spotify.js'
    Constants and small helpers
 ---------------------------------------------------------------------------- */
 
-const MODES = {
-  focus: { label: 'Focus' },
-  short: { label: 'Short break' },
-  long: { label: 'Long break' },
-}
+const MODES = { focus: 'Focus', short: 'Short break', long: 'Long break' }
 
 const DEFAULT_SETTINGS = {
   focus: 25,
@@ -137,7 +133,7 @@ let audioContext = null
 
 function wakeAudio() {
   try {
-    audioContext ??= new (window.AudioContext || window.webkitAudioContext)()
+    audioContext ??= new AudioContext()
     if (audioContext.state === 'suspended') audioContext.resume()
   } catch {
     /* no audio available */
@@ -312,27 +308,27 @@ function Segmented({ options, value, onChange, label, size = 'md' }) {
   )
 }
 
+// Native modal dialog: Escape, focus trapping and the backdrop come with it.
 function Modal({ title, onClose, children }) {
+  const ref = useRef(null)
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    if (!ref.current.open) ref.current.showModal()
+  }, [])
 
   return (
-    <div
-      className="overlay fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-black/55 p-4"
+    <dialog
+      ref={ref}
+      aria-label={title}
+      onCancel={(e) => {
+        e.preventDefault()
+        onClose()
+      }}
+      // The content fills the dialog, so a press on the dialog itself is on the backdrop.
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      className="overlay m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-line bg-surface text-ink shadow-2xl backdrop:bg-black/55"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-2xl"
-      >
-        {children}
-      </div>
-    </div>
+      <div className="p-6">{children}</div>
+    </dialog>
   )
 }
 
@@ -431,21 +427,16 @@ function Tasks({ tasks, setTasks, activeId, setActiveId }) {
             const active = task.id === activeId
             return (
               <li key={task.id} className="flex items-center gap-2 py-2">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={task.completed}
-                  aria-label={`Mark "${task.title}" ${task.completed ? 'not done' : 'done'}`}
-                  onClick={() => {
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  aria-label={`"${task.title}" done`}
+                  onChange={() => {
                     update(task.id, { completed: !task.completed })
                     if (!task.completed && active) setActiveId(null)
                   }}
-                  className={`grid size-6 shrink-0 place-items-center rounded border-2 ${
-                    task.completed ? 'border-accent bg-accent text-on-accent' : 'border-line bg-surface'
-                  }`}
-                >
-                  {task.completed && <Check size={14} strokeWidth={3} aria-hidden="true" />}
-                </button>
+                  className="size-5 shrink-0"
+                />
 
                 <button
                   type="button"
@@ -582,7 +573,7 @@ function History({ history }) {
   const totalMinutes = buckets.reduce((sum, b) => sum + b.minutes, 0)
   // Keep a little headroom so one pomodoro is not drawn as a full-height bar.
   const max = Math.max(4, ...buckets.map((b) => b.count))
-  const oldest = history.length ? Math.min(...history.map((h) => h.t)) : Infinity
+  const oldest = history[0]?.t ?? Infinity // history is kept in time order
   const canGoBack = oldest < buckets[0].start.getTime()
 
   const range =
@@ -594,14 +585,13 @@ function History({ history }) {
         }).format(new Date(buckets.at(-1).end.getTime() - 1))}`
 
   const tip = hover == null ? null : buckets[hover]
-  const tipAlign =
-    hover == null
-      ? ''
-      : hover === 0
-        ? 'left-0'
-        : hover === buckets.length - 1
-          ? 'right-0'
-          : '-translate-x-1/2'
+  // Pin the tooltip to the edge for the outer bars so it stays inside the chart.
+  const tipX =
+    hover === 0
+      ? { left: 0 }
+      : hover === buckets.length - 1
+        ? { right: 0 }
+        : { left: `${((hover + 0.5) / buckets.length) * 100}%`, translate: '-50%' }
 
   return (
     <section aria-labelledby="history-heading">
@@ -681,11 +671,8 @@ function History({ history }) {
         {tip && (
           <div
             role="status"
-            className={`pointer-events-none absolute z-10 whitespace-nowrap rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-lg ${tipAlign}`}
-            style={{
-              left: hover === buckets.length - 1 ? undefined : hover === 0 ? 0 : `${((hover + 0.5) / buckets.length) * 100}%`,
-              bottom: Math.round((tip.count / max) * PLOT_HEIGHT) + 62,
-            }}
+            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-lg"
+            style={{ ...tipX, bottom: Math.round((tip.count / max) * PLOT_HEIGHT) + 62 }}
           >
             <div className="font-semibold text-ink">{plural(tip.count, 'pomodoro')}</div>
             <div className="text-muted">
@@ -1075,7 +1062,7 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
           ) : (
             <ul>
               {/* Liked Songs has no playlist URI; an empty uri means "play Liked Songs". */}
-              {[{ uri: '', name: 'Liked Songs', liked: true }, ...sp.playlists].map((p) => (
+              {[{ uri: '', name: 'Liked Songs' }, ...sp.playlists].map((p) => (
                 <li key={p.uri || 'liked'}>
                   <button
                     type="button"
@@ -1084,7 +1071,7 @@ function SpotifyBar({ sp, onOpenSettings, children }) {
                     onClick={() => sp.playPlaylist(p.uri)}
                     className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent-soft"
                   >
-                    {p.liked ? (
+                    {!p.uri ? (
                       <span className="grid size-9 shrink-0 place-items-center rounded bg-accent text-on-accent">
                         <Heart size={16} fill="currentColor" aria-hidden="true" />
                       </span>
@@ -1137,9 +1124,9 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
 
       <h3 className="mt-4 text-sm text-muted">Timer length, in minutes</h3>
       <div className="mt-2 grid grid-cols-3 gap-3">
-        {Object.entries(MODES).map(([mode, info]) => (
+        {Object.entries(MODES).map(([mode, label]) => (
           <label key={mode} className="text-sm">
-            {info.label}
+            {label}
             <NumberField
               value={settings[mode]}
               min={MIN_MINUTES}
@@ -1368,7 +1355,7 @@ export default function App() {
   }, [timer.mode, theme])
 
   useEffect(() => {
-    document.title = `(${formatTime(remainingMs)}) ${MODES[timer.mode].label} - Pomodoro`
+    document.title = `(${formatTime(remainingMs)}) ${MODES[timer.mode]} - Pomodoro`
   }, [remainingMs, timer.mode])
 
   // Space starts and pauses; Alt+S skips.
@@ -1432,7 +1419,7 @@ export default function App() {
           <div className="flex justify-center">
             <Segmented
               label="Timer mode"
-              options={Object.entries(MODES).map(([value, info]) => ({ value, label: info.label }))}
+              options={Object.entries(MODES).map(([value, label]) => ({ value, label }))}
               value={timer.mode}
               onChange={(mode) => goTo(mode)}
             />
@@ -1509,7 +1496,7 @@ export default function App() {
                       min={MIN_MINUTES}
                       max={MAX_MINUTES}
                       onChange={(n) => setDuration(timer.mode, n)}
-                      aria-label={`${MODES[timer.mode].label} length in minutes`}
+                      aria-label={`${MODES[timer.mode]} length in minutes`}
                       className="h-10 w-16 text-base font-medium"
                     />
                     minutes
@@ -1563,7 +1550,7 @@ export default function App() {
       {hatched && (
         <HatchModal
           hatched={hatched}
-          breakLabel={MODES[timer.mode].label}
+          breakLabel={MODES[timer.mode]}
           breakRunning={timer.running}
           onClose={() => setHatched(null)}
           onStartBreak={() => {

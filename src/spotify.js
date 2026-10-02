@@ -234,13 +234,7 @@ async function request(method, path, { query, body } = {}, allowRetry = true) {
   }
 
   // Player commands answer with an empty or non-JSON body; tolerate both.
-  const text = res.status === 204 ? '' : await res.text()
-  let data = null
-  try {
-    data = text ? JSON.parse(text) : null
-  } catch {
-    data = null
-  }
+  const data = await res.json().catch(() => null)
 
   if (!res.ok) {
     throw new SpotifyError(
@@ -264,7 +258,6 @@ export async function getPlayback() {
   return {
     isPlaying: Boolean(data.is_playing),
     shuffle: Boolean(data.shuffle_state),
-    device: data.device?.name || '',
     track: item
       ? {
           uri: item.uri,
