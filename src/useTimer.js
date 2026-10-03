@@ -1,8 +1,9 @@
-// The timer and finished sessions, shared by every page. The app shell calls
-// useTimer() once and hands the result to whichever page is showing, so a
-// session that ends on any page still chimes and hatches.
+// The timer, finished sessions and coins, shared by every page. The app shell
+// calls useTimer() once and hands the result to whichever page is showing, so
+// a session that ends on any page still chimes, hatches and pays out.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { rollAnimal } from './animals.js'
+import { coinsEarned, jumpers, runElapsedMs } from './coins.js'
 
 export const MODES = { focus: 'Focus', short: 'Short break', long: 'Long break' }
 
@@ -127,6 +128,8 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
   const [timer, setTimer] = usePersistent('pomodoro.timer', () => idleTimer('focus', s.focus))
   // Timers left part-way when switching tabs, by mode, so switching back picks up where they were.
   const [parked, setParked] = usePersistent('pomodoro.parked', {})
+  // Coins from finished focus runs. The run in progress is added on top by the Meadow page.
+  const [coinsBanked, setCoinsBanked] = usePersistent('pomodoro.coins', 0)
 
   const [now, setNow] = useState(Date.now)
   const finishedFor = useRef(0)
@@ -136,6 +139,13 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
   const untouched = !timer.running && timer.remainingMs === timer.totalMs
   const volume = s.muted ? 0 : s.volume
   const lastRound = cycle + 1 >= s.interval
+
+  // Adds the coins of the focus run in progress, if any. Called before anything
+  // stops or replaces a running timer, so every run is paid exactly once.
+  const bank = useCallback(() => {
+    const earned = coinsEarned(runElapsedMs(timer, Date.now()), jumpers(history))
+    if (earned) setCoinsBanked((c) => c + earned)
+  }, [timer, history, setCoinsBanked])
 
   /* --- actions --- */
 
@@ -151,21 +161,24 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
 
   const goTo = useCallback(
     (mode, autostart = false) => {
+      bank()
       const next = idleTimer(mode, s[mode])
       if (autostart) {
         next.running = true
         next.endAt = Date.now() + next.totalMs
+        next.runStartRemainingMs = next.totalMs
       }
       unpark(mode)
       setNow(Date.now())
       setTimer(next)
     },
-    [s, setTimer, unpark],
+    [bank, s, setTimer, unpark],
   )
 
   // Tab switch: pause and park the current timer, bring back the target's parked timer if any.
   const switchTo = (mode) => {
     if (mode === timer.mode) return
+    bank()
     const left = timer.running
       ? { ...timer, running: false, remainingMs: clamp(timer.endAt - Date.now(), 0, timer.totalMs) }
       : timer
@@ -183,12 +196,13 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
   const start = useCallback(() => {
     wakeAudio() // browsers only allow sound after a click or key press
     setNow(Date.now())
-    setTimer((t) => ({ ...t, running: true, endAt: Date.now() + t.remainingMs }))
+    setTimer((t) => ({ ...t, running: true, endAt: Date.now() + t.remainingMs, runStartRemainingMs: t.remainingMs }))
   }, [setTimer])
 
   const pause = useCallback(() => {
+    bank()
     setTimer((t) => ({ ...t, running: false, remainingMs: clamp(t.endAt - Date.now(), 0, t.totalMs) }))
-  }, [setTimer])
+  }, [bank, setTimer])
 
   const toggle = useCallback(() => (timer.running ? pause() : start()), [timer.running, pause, start])
   const reset = useCallback(() => goTo(timer.mode), [goTo, timer.mode])
@@ -216,15 +230,24 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
     setHistory((list) => [...list, { t: Math.min(timer.endAt, Date.now()), min: minutes, animal: animal.id }])
     setCycle(lastRound ? 0 : cycle + 1)
     onFocusDone?.({ animal, isNew: owned === 0, count: owned + 1 })
+    // goTo banks this session's coins, using the animals owned before this one hatched.
     goTo(lastRound ? 'long' : 'short', s.autoBreak)
   }, [timer.mode, timer.totalMs, timer.endAt, volume, goTo, s.autoFocus, s.autoBreak, lastRound, history, setHistory, setCycle, cycle, onFocusDone])
 
   const clearData = useCallback(() => {
     setHistory([])
     setCycle(0)
-  }, [setHistory, setCycle])
+    setCoinsBanked(0)
+  }, [setHistory, setCycle, setCoinsBanked])
 
   /* --- effects --- */
+
+  // A timer saved by a version without coins has no run start: count its run from now.
+  useEffect(() => {
+    if (timer.running && timer.runStartRemainingMs == null) {
+      setTimer((t) => ({ ...t, runStartRemainingMs: clamp(t.endAt - Date.now(), 0, t.totalMs) }))
+    }
+  }, [timer.running, timer.runStartRemainingMs, setTimer])
 
   useEffect(() => {
     if (!timer.running) return undefined
@@ -274,6 +297,7 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
     cycle,
     lastRound,
     history,
+    coinsBanked,
     start,
     pause,
     toggle,

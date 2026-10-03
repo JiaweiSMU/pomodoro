@@ -772,7 +772,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
       <div className="mt-4 border-t border-line pt-3 text-sm">
         {confirmClear ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1">Delete all sessions, animals and tasks? This cannot be undone.</span>
+            <span className="flex-1">Delete all sessions, animals, coins and tasks? This cannot be undone.</span>
             <button type="button" onClick={() => setConfirmClear(false)} className="h-9 rounded-md border border-line px-3">
               Keep
             </button>
@@ -789,7 +789,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
           </div>
         ) : (
           <button type="button" onClick={() => setConfirmClear(true)} className="text-muted underline underline-offset-2 hover:text-ink">
-            Delete all sessions, animals and tasks
+            Delete all sessions, animals, coins and tasks
           </button>
         )}
       </div>
