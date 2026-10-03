@@ -118,7 +118,7 @@ Check: one common over 25 minutes = 150 coins. Ten commons, two rares and one le
 - **Unknown path**: shows the Timer page.
 - **Spotify login from Meadow**: the path is stored in `sessionStorage` before the redirect; the callback replaces `/callback` with it (falling back to `/`).
 - **Direct load of `/meadow`**: Vercel rewrite in production; Vite's dev server already falls back to `index.html`.
-- **Two tabs with a running timer**: both tabs would bank coins, just as both would hatch an egg today. This is an existing limitation and stays out of scope.
+- **Two tabs with a running timer**: each tab keeps its own copy of the saved state and writes it to localStorage, so the last tab to write wins and coins (like history) can be lost or double-counted. This is an existing limitation and stays out of scope; a `storage` event listener is the likely fix before coins can be spent.
 
 ## Testing
 
@@ -152,3 +152,4 @@ Choices made while planning that differ from the design above:
 - The router is `src/router.jsx` (not `.js`) because it contains JSX.
 - The jump animation is driven by `requestAnimationFrame` and the pure `jumpPose()` in `coins.js`, not CSS keyframes with computed delays. Every frame works out each animal's position from the run clock, so no resync on `visibilitychange` is needed, and reduced motion is handled in JS (the global reduced-motion CSS rule would otherwise cut CSS animations to 1 ms). `src/index.css` is unchanged.
 - Each species has a fixed waiting spot on the left and lands at its mirror on the right, then fades back to its spot, instead of rejoining the back of a moving line.
+- When the timer is paused or not in focus mode, animals return to their waiting spots instead of freezing mid-jump (the spec's "animations are paused" wording).

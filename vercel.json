@@ -1,6 +1,3 @@
 {
-  "rewrites": [
-    { "source": "/callback", "destination": "/index.html" },
-    { "source": "/meadow", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

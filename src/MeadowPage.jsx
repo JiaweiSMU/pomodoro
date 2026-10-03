@@ -56,7 +56,7 @@ function Jumper({ jumper, index, count, elapsed, active, reduced }) {
         </span>
       )}
       <Sprite sprite={ANIMAL_BY_ID[jumper.id]} size={SPRITE_PX} />
-      {jumper.copies > 1 && <span className="text-xs tabular-nums text-muted">×{jumper.copies}</span>}
+      {jumper.copies > 1 && <span className="absolute left-1/2 top-full -translate-x-1/2 text-xs tabular-nums text-muted">×{jumper.copies}</span>}
     </div>
   )
 }
