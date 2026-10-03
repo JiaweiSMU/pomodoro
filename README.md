@@ -15,6 +15,12 @@ there is no server and no database, so it runs on Vercel's free tier.
   a focus session hatches nothing. Longer sessions improve the odds of rarer
   animals, and the last session before a long break always hatches a rare or
   better. Every animal you have hatched walks along the top of the Spotify bar.
+- **Meadow**: a second page (`/meadow`). While a focus session runs, every
+  animal you have hatched takes turns jumping a fence, and each jump earns
+  coins: 1 for a common animal, 3 for a rare, 10 for a legendary, times how
+  many of it you have. Coins are earned from focus time, so they keep counting
+  on the Timer page, in another tab, or with the browser closed. They are only
+  saved for now.
 - **History**: a bar chart of completed pomodoros by day (7 days), week
   (8 weeks, Monday to Sunday) or month (6 months), with arrows to look further back.
 - **Tasks**: add tasks with an estimate, pick one, and finished sessions count toward it.
@@ -24,7 +30,7 @@ there is no server and no database, so it runs on Vercel's free tier.
 - Light and dark mode, colours that change with the timer mode, a soft chime,
   the time in the browser tab title, **Space** to start or pause, **Alt+S** to skip.
 
-Everything (settings, tasks, history, animals) is saved in your browser's
+Everything (settings, tasks, history, animals, coins) is saved in your browser's
 local storage. It stays on that browser and device, and is not synced.
 
 ## Run it on your computer
@@ -36,6 +42,8 @@ npm run dev
 
 Then open http://127.0.0.1:5173 (use that address, not `localhost`: Spotify
 rejects `localhost`).
+
+`npm test` runs the coin tests.
 
 ## Put it on Vercel
 
@@ -96,9 +104,12 @@ Things to know:
 
 | To change | Edit |
 | --- | --- |
-| Animals, their pixels and colours, the odds | `src/animals.js` |
+| Animals, their pixels and colours, the odds, the fence | `src/animals.js` |
+| Coin values and how often animals jump | `src/coins.js` |
 | Colours for each mode, light and dark | `src/index.css` |
-| The timer, tasks, chart, collection and Settings | `src/App.jsx` |
+| The timer and saved sessions | `src/useTimer.js` |
+| The timer page, tasks, chart, collection and Settings | `src/App.jsx` |
+| The Meadow page | `src/MeadowPage.jsx` |
 | The Spotify bar and playlist list | `src/SpotifyBar.jsx` |
 | How the site talks to Spotify | `src/spotify.js` |
 
