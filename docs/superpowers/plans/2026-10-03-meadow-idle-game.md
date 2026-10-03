@@ -681,8 +681,7 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
 }
 ```
 
-Note: the old `setDuration` in `App` also saved the new length to settings. Settings stay in the Shell, so the Shell wraps it (Step 3). `<a>` is added to the `interactive` list so Space on a focused nav link follows the link instead of toggling the timer.
-
+Note: the old `setDuration` in `App` also saved the new length to settings. Settings stay in the Shell, so the Shell wraps it (Step 3).
 - [ ] **Step 3: Rewrite `src/App.jsx` as the Shell**
 
 3a. Replace the imports at the top of the file (lines 1-24) with:
@@ -715,8 +714,6 @@ import { SpotifyBar, useSpotify } from './SpotifyBar.jsx'
 import * as spotify from './spotify.js'
 import { MODES, chime, clamp, formatTime, usePersistent, useTimer } from './useTimer.js'
 ```
-
-(Keep `useCallback` in the import only if a remaining component still uses it: run `grep -n useCallback src/App.jsx` after Step 3c and add it back if any match.)
 
 3b. Delete these now-moved blocks from `src/App.jsx`:
 - `const MODES = ...` (line 30)
@@ -981,7 +978,7 @@ export default function App() {
 
 - [ ] **Step 4: Check nothing still refers to moved names**
 
-Run: `grep -nE "\b(idleTimer|startTicker|wakeAudio|audioContext|load\(|function Sprite|function Meadow|<Meadow)\b" src/App.jsx`
+Run: `grep -nE "idleTimer|startTicker|wakeAudio|audioContext|function load|function Sprite|function Meadow|<Meadow |useCallback" src/App.jsx`
 Expected: no output.
 
 - [ ] **Step 5: Build and test**
@@ -1382,7 +1379,7 @@ const PAGES = [
 
 function PageNav({ page }) {
   return (
-    <nav aria-label="Pages" className="order-last w-full sm:order-none sm:w-auto">
+    <nav aria-label="Pages" className="order-last w-full sm:order-0 sm:w-auto">
       <div className="mx-auto flex w-fit rounded-lg border border-line bg-surface p-1">
         {PAGES.map(({ to, label }) => (
           <Link
