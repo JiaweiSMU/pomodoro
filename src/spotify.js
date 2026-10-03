@@ -22,6 +22,8 @@ const TOKENS_KEY = 'pomodoro.spotify.tokens'
 const VERIFIER_KEY = 'pomodoro.spotify.verifier'
 const STATE_KEY = 'pomodoro.spotify.state'
 const CLIENT_ID_KEY = 'pomodoro.spotify.clientId'
+// Page to return to after the Spotify login (per tab, so sessionStorage).
+const RETURN_KEY = 'pomodoro.spotify.return'
 
 export class SpotifyError extends Error {
   constructor(status, reason, message, retryAfter = 0) {
@@ -167,6 +169,7 @@ export async function login() {
     scope: SCOPES.join(' '),
     state,
   }).toString()
+  sessionStorage.setItem(RETURN_KEY, window.location.pathname)
   window.location.assign(url.toString())
 }
 
@@ -179,7 +182,13 @@ export function finishLogin() {
   finishing ??= (async () => {
     if (window.location.pathname !== '/callback') return null
     const params = new URLSearchParams(window.location.search)
-    window.history.replaceState(null, '', '/')
+    // Back to the page the login started from. Only same-site paths are accepted;
+    // the popstate event tells the router the path changed.
+    const back = sessionStorage.getItem(RETURN_KEY)
+    sessionStorage.removeItem(RETURN_KEY)
+    const safe = back && back.startsWith('/') && !back.startsWith('//') && back !== '/callback'
+    window.history.replaceState(null, '', safe ? back : '/')
+    window.dispatchEvent(new PopStateEvent('popstate'))
 
     const error = params.get('error')
     if (error) {

@@ -20,7 +20,9 @@ import {
 } from 'lucide-react'
 import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY } from './animals.js'
 import IconButton from './IconButton.jsx'
+import MeadowPage from './MeadowPage.jsx'
 import Sprite from './Sprite.jsx'
+import { Link, usePath } from './router.jsx'
 import { SpotifyBar, useSpotify } from './SpotifyBar.jsx'
 import * as spotify from './spotify.js'
 import { MODES, chime, clamp, formatTime, usePersistent, useTimer } from './useTimer.js'
@@ -932,6 +934,32 @@ function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActive
   )
 }
 
+const PAGES = [
+  { to: '/', label: 'Timer' },
+  { to: '/meadow', label: 'Meadow' },
+]
+
+function PageNav({ page }) {
+  return (
+    <nav aria-label="Pages" className="order-last w-full sm:order-0 sm:w-auto">
+      <div className="mx-auto flex w-fit rounded-lg border border-line bg-surface p-1">
+        {PAGES.map(({ to, label }) => (
+          <Link
+            key={to}
+            to={to}
+            aria-current={page === to ? 'page' : undefined}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              page === to ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
 /* ----------------------------------------------------------------------------
    App shell: header, the current page, Spotify bar and pop-ups
 ---------------------------------------------------------------------------- */
@@ -946,6 +974,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hatched, setHatched] = useState(null)
   const sp = useSpotify()
+  // Anything other than /meadow (including /callback) shows the timer.
+  const page = usePath() === '/meadow' ? '/meadow' : '/'
 
   const t = useTimer(s, {
     keysEnabled: !settingsOpen && hatched == null,
@@ -967,11 +997,12 @@ export default function App() {
 
   return (
     <div className="min-h-dvh pb-32">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-2">
           <Sprite sprite={EGG} size={32} />
           <h1 className="font-pixel text-3xl">Pomodoro</h1>
         </div>
+        <PageNav page={page} />
         <div className="flex items-center">
           <IconButton
             label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -985,15 +1016,19 @@ export default function App() {
         </div>
       </header>
 
-      <TimerPage
-        t={t}
-        s={s}
-        setDuration={setDuration}
-        tasks={tasks}
-        setTasks={setTasks}
-        activeTaskId={activeTaskId}
-        setActiveTaskId={setActiveTaskId}
-      />
+      {page === '/meadow' ? (
+        <MeadowPage t={t} />
+      ) : (
+        <TimerPage
+          t={t}
+          s={s}
+          setDuration={setDuration}
+          tasks={tasks}
+          setTasks={setTasks}
+          activeTaskId={activeTaskId}
+          setActiveTaskId={setActiveTaskId}
+        />
+      )}
 
       <SpotifyBar sp={sp} onOpenSettings={() => setSettingsOpen(true)}>
         <BarCritters history={t.history} />
