@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   ChevronLeft,
@@ -18,16 +18,16 @@ import {
   VolumeX,
   X,
 } from 'lucide-react'
-import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY, rollAnimal } from './animals.js'
+import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY } from './animals.js'
 import IconButton from './IconButton.jsx'
+import Sprite from './Sprite.jsx'
 import { SpotifyBar, useSpotify } from './SpotifyBar.jsx'
 import * as spotify from './spotify.js'
+import { MODES, chime, clamp, formatTime, usePersistent, useTimer } from './useTimer.js'
 
 /* ----------------------------------------------------------------------------
    Constants and small helpers
 ---------------------------------------------------------------------------- */
-
-const MODES = { focus: 'Focus', short: 'Short break', long: 'Long break' }
 
 const DEFAULT_SETTINGS = {
   focus: 25,
@@ -44,170 +44,13 @@ const DEFAULT_SETTINGS = {
 const MIN_MINUTES = 1
 const MAX_MINUTES = 180
 
-const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n))
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
-
-function formatTime(ms) {
-  const total = Math.ceil(ms / 1000)
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 
 function formatMinutes(min) {
   if (min < 60) return `${min} min`
   const h = Math.floor(min / 60)
   const m = min % 60
   return m ? `${h} h ${m} min` : `${h} h`
-}
-
-function load(key) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw == null ? undefined : JSON.parse(raw)
-  } catch {
-    return undefined
-  }
-}
-
-// useState that also saves to localStorage.
-function usePersistent(key, initial) {
-  const [value, setValue] = useState(() => {
-    const saved = load(key)
-    if (saved !== undefined) return saved
-    return typeof initial === 'function' ? initial() : initial
-  })
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      /* storage full or blocked: keep working in memory */
-    }
-  }, [key, value])
-  return [value, setValue]
-}
-
-const idleTimer = (mode, minutes) => ({
-  mode,
-  running: false,
-  endAt: 0,
-  remainingMs: minutes * 60_000,
-  totalMs: minutes * 60_000,
-})
-
-// A steady tick that keeps firing when the tab is in the background. Browsers
-// slow page timers in hidden tabs to as little as once a minute; timers inside
-// a worker are not slowed the same way, so the end-of-session chime stays on time.
-function startTicker(onTick) {
-  let worker = null
-  let url = null
-  let interval = null
-  const usePageTimer = () => {
-    worker?.terminate()
-    worker = null
-    interval ??= setInterval(onTick, 250)
-  }
-  try {
-    url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 250)'], { type: 'text/javascript' }))
-    worker = new Worker(url)
-    worker.onmessage = onTick
-    worker.onerror = usePageTimer // the browser refused the worker: tick from the page instead
-  } catch {
-    usePageTimer()
-  }
-  return () => {
-    worker?.terminate()
-    if (interval) clearInterval(interval)
-    if (url) URL.revokeObjectURL(url)
-  }
-}
-
-/* ----------------------------------------------------------------------------
-   Sound: a soft synthesised chime, no audio files
----------------------------------------------------------------------------- */
-
-let audioContext = null
-
-function wakeAudio() {
-  try {
-    audioContext ??= new AudioContext()
-    if (audioContext.state === 'suspended') audioContext.resume()
-  } catch {
-    /* no audio available */
-  }
-}
-
-function chime(kind, volume) {
-  if (volume <= 0) return
-  wakeAudio()
-  if (!audioContext) return
-  // Rising for "focus done", falling for "break over".
-  const notes = kind === 'focus' ? [523.25, 659.25, 783.99] : [783.99, 587.33]
-  notes.forEach((frequency, i) => {
-    const at = audioContext.currentTime + i * 0.24
-    const osc = audioContext.createOscillator()
-    const gain = audioContext.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = frequency
-    gain.gain.setValueAtTime(0.0001, at)
-    gain.gain.exponentialRampToValueAtTime(0.4 * volume, at + 0.03)
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + 1.1)
-    osc.connect(gain).connect(audioContext.destination)
-    osc.start(at)
-    osc.stop(at + 1.2)
-  })
-}
-
-/* ----------------------------------------------------------------------------
-   Pixel sprite
----------------------------------------------------------------------------- */
-
-function Sprite({ sprite, size, label, silhouette = false, cracks, className = '' }) {
-  // Merge neighbouring pixels of the same colour into one rectangle per run.
-  const runs = useMemo(() => {
-    const grid = sprite.px.map((row) => row.split(''))
-    for (const [x, y] of cracks || []) grid[y][x] = 'k'
-    const out = []
-    grid.forEach((row, y) => {
-      let x = 0
-      while (x < row.length) {
-        const c = row[x]
-        if (c === '.') {
-          x += 1
-          continue
-        }
-        let w = 1
-        while (x + w < row.length && row[x + w] === c) w += 1
-        out.push({ x, y, w, c })
-        x += w
-      }
-    })
-    return out
-  }, [sprite, cracks])
-
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width={size}
-      height={size}
-      shapeRendering="crispEdges"
-      className={`shrink-0 ${className}`}
-      role={label ? 'img' : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
-    >
-      {runs.map((r) => (
-        <rect
-          key={`${r.x}-${r.y}`}
-          x={r.x}
-          y={r.y}
-          width={r.w}
-          height={1}
-          fill={silhouette ? 'var(--line)' : sprite.pal[r.c]}
-        />
-      ))}
-    </svg>
-  )
 }
 
 /* ----------------------------------------------------------------------------
@@ -695,7 +538,7 @@ function History({ history }) {
    Hatched animals wandering along the top of the Spotify bar
 ---------------------------------------------------------------------------- */
 
-function Meadow({ history }) {
+function BarCritters({ history }) {
   const animals = useMemo(
     () => [...new Set(history.map((h) => h.animal))].map((id) => ANIMAL_BY_ID[id]).filter(Boolean),
     [history],
@@ -955,168 +798,13 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
 }
 
 /* ----------------------------------------------------------------------------
-   App
+   Timer page
 ---------------------------------------------------------------------------- */
 
-export default function App() {
-  const [settings, setSettings] = usePersistent('pomodoro.settings', DEFAULT_SETTINGS)
-  const s = useMemo(() => ({ ...DEFAULT_SETTINGS, ...settings }), [settings])
-  const theme = s.theme ?? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-
-  const [tasks, setTasks] = usePersistent('pomodoro.tasks', [])
-  const [activeTaskId, setActiveTaskId] = usePersistent('pomodoro.activeTask', null)
-  // One entry per finished focus session: { t: time, min: length, animal: id }
-  const [history, setHistory] = usePersistent('pomodoro.history', [])
-  // Focus sessions finished since the last long break.
-  const [cycle, setCycle] = usePersistent('pomodoro.cycle', 0)
-  const [timer, setTimer] = usePersistent('pomodoro.timer', () => idleTimer('focus', s.focus))
-  // Timers left part-way when switching tabs, by mode, so switching back picks up where they were.
-  const [parked, setParked] = usePersistent('pomodoro.parked', {})
-
-  const [now, setNow] = useState(Date.now)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [hatched, setHatched] = useState(null)
-  const finishedFor = useRef(0)
-  const sp = useSpotify()
-
-  const remainingMs = timer.running ? clamp(timer.endAt - now, 0, timer.totalMs) : timer.remainingMs
-  const progress = timer.totalMs ? 1 - remainingMs / timer.totalMs : 0
-  const untouched = !timer.running && timer.remainingMs === timer.totalMs
-  const volume = s.muted ? 0 : s.volume
-  const lastRound = cycle + 1 >= s.interval
-
-  /* --- timer actions --- */
-
-  const unpark = useCallback(
-    (mode) =>
-      setParked((p) => {
-        const next = { ...p }
-        delete next[mode]
-        return next
-      }),
-    [setParked],
-  )
-
-  const goTo = useCallback(
-    (mode, autostart = false) => {
-      const next = idleTimer(mode, s[mode])
-      if (autostart) {
-        next.running = true
-        next.endAt = Date.now() + next.totalMs
-      }
-      unpark(mode)
-      setNow(Date.now())
-      setTimer(next)
-    },
-    [s, setTimer, unpark],
-  )
-
-  // Tab switch: pause and park the current timer, bring back the target's parked timer if any.
-  const switchTo = (mode) => {
-    if (mode === timer.mode) return
-    const left = timer.running
-      ? { ...timer, running: false, remainingMs: clamp(timer.endAt - Date.now(), 0, timer.totalMs) }
-      : timer
-    const back = parked[mode]
-    setParked((p) => {
-      const next = { ...p, [timer.mode]: left }
-      if (left.remainingMs === left.totalMs) delete next[timer.mode]
-      delete next[mode]
-      return next
-    })
-    setNow(Date.now())
-    setTimer(back ?? idleTimer(mode, s[mode]))
-  }
-
-  const start = useCallback(() => {
-    wakeAudio() // browsers only allow sound after a click or key press
-    setNow(Date.now())
-    setTimer((t) => ({ ...t, running: true, endAt: Date.now() + t.remainingMs }))
-  }, [setTimer])
-
-  const pause = useCallback(() => {
-    setTimer((t) => ({ ...t, running: false, remainingMs: clamp(t.endAt - Date.now(), 0, t.totalMs) }))
-  }, [setTimer])
-
-  const toggle = useCallback(() => (timer.running ? pause() : start()), [timer.running, pause, start])
-  const reset = useCallback(() => goTo(timer.mode), [goTo, timer.mode])
-  // Skipping a focus session moves on without hatching anything.
-  const skip = useCallback(() => goTo(timer.mode === 'focus' ? 'short' : 'focus'), [goTo, timer.mode])
-
-  const setDuration = useCallback(
-    (mode, minutes) => {
-      setSettings((prev) => ({ ...prev, [mode]: minutes }))
-      setTimer((t) => (t.mode === mode && !t.running ? idleTimer(mode, minutes) : t))
-      unpark(mode)
-    },
-    [setSettings, setTimer, unpark],
-  )
-
-  const finish = useCallback(() => {
-    chime(timer.mode, volume)
-    if (timer.mode !== 'focus') {
-      goTo('focus', s.autoFocus)
-      return
-    }
-    const minutes = Math.round(timer.totalMs / 60_000)
-    const animal = rollAnimal(minutes, lastRound)
-    const owned = history.filter((h) => h.animal === animal.id).length
-    // Dated when the timer ran out, which may be earlier if the tab was closed.
-    setHistory((list) => [...list, { t: Math.min(timer.endAt, Date.now()), min: minutes, animal: animal.id }])
-    setTasks((list) => list.map((t) => (t.id === activeTaskId ? { ...t, done: t.done + 1 } : t)))
-    setCycle(lastRound ? 0 : cycle + 1)
-    setHatched({ animal, isNew: owned === 0, count: owned + 1 })
-    goTo(lastRound ? 'long' : 'short', s.autoBreak)
-  }, [timer.mode, timer.totalMs, timer.endAt, volume, goTo, s.autoFocus, s.autoBreak, lastRound, history, setHistory, setTasks, activeTaskId, setCycle, cycle])
-
-  /* --- effects --- */
-
-  useEffect(() => {
-    if (!timer.running) return undefined
-    return startTicker(() => setNow(Date.now()))
-  }, [timer.running])
-
-  useEffect(() => {
-    if (timer.running && now >= timer.endAt && finishedFor.current !== timer.endAt) {
-      finishedFor.current = timer.endAt
-      finish()
-    }
-  }, [now, timer.running, timer.endAt, finish])
-
-  useEffect(() => {
-    document.documentElement.dataset.mode = timer.mode
-    document.documentElement.dataset.theme = theme
-  }, [timer.mode, theme])
-
-  useEffect(() => {
-    document.title = `(${formatTime(remainingMs)}) ${MODES[timer.mode]} - Pomodoro`
-  }, [remainingMs, timer.mode])
-
-  // Space starts and pauses; Alt+S skips.
-  const modalOpen = settingsOpen || hatched != null
-  useEffect(() => {
-    const onKey = (e) => {
-      if (modalOpen) return
-      if (e.altKey && e.code === 'KeyS') {
-        e.preventDefault()
-        skip()
-        return
-      }
-      const el = e.target
-      const interactive = el.closest?.('input, textarea, select, button, a, [contenteditable="true"]')
-      if (e.code === 'Space' && !interactive && !e.repeat) {
-        e.preventDefault()
-        toggle()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [modalOpen, skip, toggle])
-
-  /* --- what sits inside the ring --- */
-
+function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActiveTaskId }) {
+  const { timer, remainingMs, progress, untouched, cycle, lastRound, history } = t
   const latest = history.length ? ANIMAL_BY_ID[history.at(-1).animal] : null
-  const activeTask = tasks.find((t) => t.id === activeTaskId && !t.completed)
+  const activeTask = tasks.find((task) => task.id === activeTaskId && !task.completed)
   const crackStage = Math.min(3, Math.floor(progress * 4))
 
   let caption
@@ -1127,6 +815,155 @@ export default function App() {
   } else {
     caption = latest ? `${latest.name} is keeping you company` : 'Step away for a bit'
   }
+
+  return (
+    <main className="mx-auto grid max-w-6xl grid-cols-1 gap-x-16 gap-y-12 px-4 pt-2 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
+      <div className="min-w-0">
+        <div className="flex justify-center">
+          <Segmented
+            label="Timer mode"
+            options={Object.entries(MODES).map(([value, label]) => ({ value, label }))}
+            value={timer.mode}
+            onChange={t.switchTo}
+          />
+        </div>
+
+        <div className="mt-8">
+          <Ring progress={progress}>
+            {timer.mode === 'focus' || !latest ? (
+              <Sprite
+                sprite={EGG}
+                size={96}
+                cracks={timer.mode === 'focus' ? CRACKS[crackStage] : CRACKS[0]}
+                label={timer.mode === 'focus' ? 'An egg, waiting to hatch' : 'An egg'}
+              />
+            ) : (
+              <Sprite sprite={latest} size={96} label={latest.name} />
+            )}
+            <div
+              className="mt-1 flex font-pixel text-7xl leading-none sm:text-8xl"
+              role="timer"
+              aria-label={`${formatTime(remainingMs)} remaining`}
+            >
+              {/* One fixed-width cell per character, so the digits do not shift as they change. */}
+              {formatTime(remainingMs)
+                .split('')
+                .map((char, i) => (
+                  <span key={i} aria-hidden="true" className={`text-center ${char === ':' ? 'w-[0.28em]' : 'w-[0.5em]'}`}>
+                    {char}
+                  </span>
+                ))}
+            </div>
+            <p className="mt-2 max-w-[13rem] text-center text-sm leading-snug text-muted">{caption}</p>
+          </Ring>
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-3">
+          <IconButton label="Reset timer" onClick={t.reset} disabled={untouched} size="size-12">
+            <RotateCcw size={22} aria-hidden="true" />
+          </IconButton>
+          <button
+            type="button"
+            onClick={t.toggle}
+            data-pressed={timer.running}
+            className="key flex h-14 w-44 items-center justify-center gap-2 font-pixel text-3xl"
+          >
+            {timer.running ? <Pause size={22} aria-hidden="true" /> : <Play size={22} aria-hidden="true" />}
+            {timer.running ? 'Pause' : untouched ? 'Start' : 'Resume'}
+          </button>
+          <IconButton label="Skip to the next timer (Alt+S)" onClick={t.skip} size="size-12">
+            <SkipForward size={22} aria-hidden="true" />
+          </IconButton>
+        </div>
+
+        <div className="mt-7 flex min-h-[4.75rem] flex-col items-center gap-2">
+          {timer.running ? (
+            activeTask && (
+              <p className="max-w-full truncate text-sm text-muted">
+                Working on <span className="font-medium text-ink">{activeTask.title}</span>
+              </p>
+            )
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <IconButton
+                  label="One minute less"
+                  disabled={s[timer.mode] <= MIN_MINUTES}
+                  onClick={() => setDuration(timer.mode, s[timer.mode] - 1)}
+                >
+                  <Minus size={18} aria-hidden="true" />
+                </IconButton>
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <NumberField
+                    value={s[timer.mode]}
+                    min={MIN_MINUTES}
+                    max={MAX_MINUTES}
+                    onChange={(n) => setDuration(timer.mode, n)}
+                    aria-label={`${MODES[timer.mode]} length in minutes`}
+                    className="h-10 w-16 text-base font-medium"
+                  />
+                  minutes
+                </label>
+                <IconButton
+                  label="One minute more"
+                  disabled={s[timer.mode] >= MAX_MINUTES}
+                  onClick={() => setDuration(timer.mode, s[timer.mode] + 1)}
+                >
+                  <Plus size={18} aria-hidden="true" />
+                </IconButton>
+              </div>
+              {timer.mode === 'focus' && (
+                <p className="text-center text-sm text-muted">
+                  Finish the session to hatch the egg. Longer sessions hatch rarer animals.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        <Tasks tasks={tasks} setTasks={setTasks} activeId={activeTaskId} setActiveId={setActiveTaskId} />
+      </div>
+
+      <div className="min-w-0">
+        <History history={history} />
+        <Collection history={history} />
+      </div>
+    </main>
+  )
+}
+
+/* ----------------------------------------------------------------------------
+   App shell: header, the current page, Spotify bar and pop-ups
+---------------------------------------------------------------------------- */
+
+export default function App() {
+  const [settings, setSettings] = usePersistent('pomodoro.settings', DEFAULT_SETTINGS)
+  const s = useMemo(() => ({ ...DEFAULT_SETTINGS, ...settings }), [settings])
+  const theme = s.theme ?? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+
+  const [tasks, setTasks] = usePersistent('pomodoro.tasks', [])
+  const [activeTaskId, setActiveTaskId] = usePersistent('pomodoro.activeTask', null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [hatched, setHatched] = useState(null)
+  const sp = useSpotify()
+
+  const t = useTimer(s, {
+    keysEnabled: !settingsOpen && hatched == null,
+    onFocusDone: (result) => {
+      setTasks((list) => list.map((task) => (task.id === activeTaskId ? { ...task, done: task.done + 1 } : task)))
+      setHatched(result)
+    },
+  })
+
+  // Changing a length is saved to settings and applied to an idle timer in that mode.
+  const setDuration = (mode, minutes) => {
+    setSettings((prev) => ({ ...prev, [mode]: minutes }))
+    t.setDuration(mode, minutes)
+  }
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   return (
     <div className="min-h-dvh pb-32">
@@ -1148,121 +985,18 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-x-16 gap-y-12 px-4 pt-2 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
-        <div className="min-w-0">
-          <div className="flex justify-center">
-            <Segmented
-              label="Timer mode"
-              options={Object.entries(MODES).map(([value, label]) => ({ value, label }))}
-              value={timer.mode}
-              onChange={switchTo}
-            />
-          </div>
-
-          <div className="mt-8">
-            <Ring progress={progress}>
-              {timer.mode === 'focus' || !latest ? (
-                <Sprite
-                  sprite={EGG}
-                  size={96}
-                  cracks={timer.mode === 'focus' ? CRACKS[crackStage] : CRACKS[0]}
-                  label={timer.mode === 'focus' ? 'An egg, waiting to hatch' : 'An egg'}
-                />
-              ) : (
-                <Sprite sprite={latest} size={96} label={latest.name} />
-              )}
-              <div
-                className="mt-1 flex font-pixel text-7xl leading-none sm:text-8xl"
-                role="timer"
-                aria-label={`${formatTime(remainingMs)} remaining`}
-              >
-                {/* One fixed-width cell per character, so the digits do not shift as they change. */}
-                {formatTime(remainingMs)
-                  .split('')
-                  .map((char, i) => (
-                    <span key={i} aria-hidden="true" className={`text-center ${char === ':' ? 'w-[0.28em]' : 'w-[0.5em]'}`}>
-                      {char}
-                    </span>
-                  ))}
-              </div>
-              <p className="mt-2 max-w-[13rem] text-center text-sm leading-snug text-muted">{caption}</p>
-            </Ring>
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <IconButton label="Reset timer" onClick={reset} disabled={untouched} size="size-12">
-              <RotateCcw size={22} aria-hidden="true" />
-            </IconButton>
-            <button
-              type="button"
-              onClick={toggle}
-              data-pressed={timer.running}
-              className="key flex h-14 w-44 items-center justify-center gap-2 font-pixel text-3xl"
-            >
-              {timer.running ? <Pause size={22} aria-hidden="true" /> : <Play size={22} aria-hidden="true" />}
-              {timer.running ? 'Pause' : untouched ? 'Start' : 'Resume'}
-            </button>
-            <IconButton label="Skip to the next timer (Alt+S)" onClick={skip} size="size-12">
-              <SkipForward size={22} aria-hidden="true" />
-            </IconButton>
-          </div>
-
-          <div className="mt-7 flex min-h-[4.75rem] flex-col items-center gap-2">
-            {timer.running ? (
-              activeTask && (
-                <p className="max-w-full truncate text-sm text-muted">
-                  Working on <span className="font-medium text-ink">{activeTask.title}</span>
-                </p>
-              )
-            ) : (
-              <>
-                <div className="flex items-center gap-1">
-                  <IconButton
-                    label="One minute less"
-                    disabled={s[timer.mode] <= MIN_MINUTES}
-                    onClick={() => setDuration(timer.mode, s[timer.mode] - 1)}
-                  >
-                    <Minus size={18} aria-hidden="true" />
-                  </IconButton>
-                  <label className="flex items-center gap-2 text-sm text-muted">
-                    <NumberField
-                      value={s[timer.mode]}
-                      min={MIN_MINUTES}
-                      max={MAX_MINUTES}
-                      onChange={(n) => setDuration(timer.mode, n)}
-                      aria-label={`${MODES[timer.mode]} length in minutes`}
-                      className="h-10 w-16 text-base font-medium"
-                    />
-                    minutes
-                  </label>
-                  <IconButton
-                    label="One minute more"
-                    disabled={s[timer.mode] >= MAX_MINUTES}
-                    onClick={() => setDuration(timer.mode, s[timer.mode] + 1)}
-                  >
-                    <Plus size={18} aria-hidden="true" />
-                  </IconButton>
-                </div>
-                {timer.mode === 'focus' && (
-                  <p className="text-center text-sm text-muted">
-                    Finish the session to hatch the egg. Longer sessions hatch rarer animals.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          <Tasks tasks={tasks} setTasks={setTasks} activeId={activeTaskId} setActiveId={setActiveTaskId} />
-        </div>
-
-        <div className="min-w-0">
-          <History history={history} />
-          <Collection history={history} />
-        </div>
-      </main>
+      <TimerPage
+        t={t}
+        s={s}
+        setDuration={setDuration}
+        tasks={tasks}
+        setTasks={setTasks}
+        activeTaskId={activeTaskId}
+        setActiveTaskId={setActiveTaskId}
+      />
 
       <SpotifyBar sp={sp} onOpenSettings={() => setSettingsOpen(true)}>
-        <Meadow history={history} />
+        <BarCritters history={t.history} />
       </SpotifyBar>
 
       {settingsOpen && (
@@ -1273,10 +1007,9 @@ export default function App() {
           sp={sp}
           onClose={() => setSettingsOpen(false)}
           onClearData={() => {
-            setHistory([])
+            t.clearData()
             setTasks([])
             setActiveTaskId(null)
-            setCycle(0)
           }}
         />
       )}
@@ -1284,12 +1017,12 @@ export default function App() {
       {hatched && (
         <HatchModal
           hatched={hatched}
-          breakLabel={MODES[timer.mode]}
-          breakRunning={timer.running}
+          breakLabel={MODES[t.timer.mode]}
+          breakRunning={t.timer.running}
           onClose={() => setHatched(null)}
           onStartBreak={() => {
             setHatched(null)
-            start()
+            t.start()
           }}
         />
       )}
