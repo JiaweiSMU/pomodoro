@@ -855,6 +855,29 @@ export const CRACKS = [
   [[3, 7], [4, 6], [5, 7], [6, 8], [7, 7], [8, 6], [9, 7], [10, 8], [11, 7], [12, 6], [6, 9], [7, 10], [8, 5]],
 ]
 
+// Wooden fence for the Meadow page. Same format as the animals.
+export const FENCE = {
+  pal: { k: '#5A3A1E', w: '#B07A45', W: '#D9A066' },
+  px: [
+    '................',
+    '................',
+    '................',
+    '.kk..........kk.',
+    'kWWk........kWWk',
+    'kWwkkkkkkkkkkwWk',
+    'kWwWWWWWWWWWWwWk',
+    'kWwwwwwwwwwwwwWk',
+    'kWwkkkkkkkkkkwWk',
+    'kWwk........kwWk',
+    'kWwkkkkkkkkkkwWk',
+    'kWwWWWWWWWWWWwWk',
+    'kWwwwwwwwwwwwwWk',
+    'kWwkkkkkkkkkkwWk',
+    'kWwk........kwWk',
+    'kkkk........kkkk',
+  ],
+}
+
 // Pick the animal for a finished focus session.
 //   minutes    - length of the session; longer sessions improve the odds of rarer animals
 //   guaranteed - true on the last session before a long break: at least a rare
