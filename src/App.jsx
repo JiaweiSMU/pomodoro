@@ -970,6 +970,8 @@ export default function App() {
   // Focus sessions finished since the last long break.
   const [cycle, setCycle] = usePersistent('pomodoro.cycle', 0)
   const [timer, setTimer] = usePersistent('pomodoro.timer', () => idleTimer('focus', s.focus))
+  // Timers left part-way when switching tabs, by mode, so switching back picks up where they were.
+  const [parked, setParked] = usePersistent('pomodoro.parked', {})
 
   const [now, setNow] = useState(Date.now)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -985,6 +987,16 @@ export default function App() {
 
   /* --- timer actions --- */
 
+  const unpark = useCallback(
+    (mode) =>
+      setParked((p) => {
+        const next = { ...p }
+        delete next[mode]
+        return next
+      }),
+    [setParked],
+  )
+
   const goTo = useCallback(
     (mode, autostart = false) => {
       const next = idleTimer(mode, s[mode])
@@ -992,11 +1004,29 @@ export default function App() {
         next.running = true
         next.endAt = Date.now() + next.totalMs
       }
+      unpark(mode)
       setNow(Date.now())
       setTimer(next)
     },
-    [s, setTimer],
+    [s, setTimer, unpark],
   )
+
+  // Tab switch: pause and park the current timer, bring back the target's parked timer if any.
+  const switchTo = (mode) => {
+    if (mode === timer.mode) return
+    const left = timer.running
+      ? { ...timer, running: false, remainingMs: clamp(timer.endAt - Date.now(), 0, timer.totalMs) }
+      : timer
+    const back = parked[mode]
+    setParked((p) => {
+      const next = { ...p, [timer.mode]: left }
+      if (left.remainingMs === left.totalMs) delete next[timer.mode]
+      delete next[mode]
+      return next
+    })
+    setNow(Date.now())
+    setTimer(back ?? idleTimer(mode, s[mode]))
+  }
 
   const start = useCallback(() => {
     wakeAudio() // browsers only allow sound after a click or key press
@@ -1017,8 +1047,9 @@ export default function App() {
     (mode, minutes) => {
       setSettings((prev) => ({ ...prev, [mode]: minutes }))
       setTimer((t) => (t.mode === mode && !t.running ? idleTimer(mode, minutes) : t))
+      unpark(mode)
     },
-    [setSettings, setTimer],
+    [setSettings, setTimer, unpark],
   )
 
   const finish = useCallback(() => {
@@ -1124,7 +1155,7 @@ export default function App() {
               label="Timer mode"
               options={Object.entries(MODES).map(([value, label]) => ({ value, label }))}
               value={timer.mode}
-              onChange={(mode) => goTo(mode)}
+              onChange={switchTo}
             />
           </div>
 
