@@ -144,3 +144,11 @@ Manual check in `npm run dev`:
 5. Connect Spotify from Meadow; you come back to Meadow.
 6. Back and Forward buttons move between the pages.
 7. Dark mode and reduced motion.
+
+## Implementation notes
+
+Choices made while planning that differ from the design above:
+
+- The router is `src/router.jsx` (not `.js`) because it contains JSX.
+- The jump animation is driven by `requestAnimationFrame` and the pure `jumpPose()` in `coins.js`, not CSS keyframes with computed delays. Every frame works out each animal's position from the run clock, so no resync on `visibilitychange` is needed, and reduced motion is handled in JS (the global reduced-motion CSS rule would otherwise cut CSS animations to 1 ms). `src/index.css` is unchanged.
+- Each species has a fixed waiting spot on the left and lands at its mirror on the right, then fades back to its spot, instead of rejoining the back of a moving line.
