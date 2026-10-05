@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY } from './animals.js'
+import ClosetPage from './ClosetPage.jsx'
 import IconButton from './IconButton.jsx'
 import MeadowPage from './MeadowPage.jsx'
 import Sprite from './Sprite.jsx'
@@ -774,7 +775,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
       <div className="mt-4 border-t border-line pt-3 text-sm">
         {confirmClear ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1">Delete all sessions, animals, coins and tasks? This cannot be undone.</span>
+            <span className="flex-1">Delete all sessions, animals, coins, items and tasks? This cannot be undone.</span>
             <button type="button" onClick={() => setConfirmClear(false)} className="h-9 rounded-md border border-line px-3">
               Keep
             </button>
@@ -791,7 +792,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
           </div>
         ) : (
           <button type="button" onClick={() => setConfirmClear(true)} className="text-muted underline underline-offset-2 hover:text-ink">
-            Delete all sessions, animals, coins and tasks
+            Delete all sessions, animals, coins, items and tasks
           </button>
         )}
       </div>
@@ -937,6 +938,7 @@ function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActive
 const PAGES = [
   { to: '/', label: 'Timer' },
   { to: '/meadow', label: 'Meadow' },
+  { to: '/closet', label: 'Closet' },
 ]
 
 function PageNav({ page }) {
@@ -973,9 +975,15 @@ export default function App() {
   const [activeTaskId, setActiveTaskId] = usePersistent('pomodoro.activeTask', null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hatched, setHatched] = useState(null)
+  const [ownedSaved, setOwned] = usePersistent('pomodoro.owned', [])
+  const [wornSaved, setWorn] = usePersistent('pomodoro.worn', {})
+  // Storage can be edited by hand: anything of the wrong shape counts as empty.
+  const owned = Array.isArray(ownedSaved) ? ownedSaved : []
+  const worn = wornSaved && typeof wornSaved === 'object' && !Array.isArray(wornSaved) ? wornSaved : {}
   const sp = useSpotify()
-  // Anything other than /meadow (including /callback) shows the timer.
-  const page = usePath() === '/meadow' ? '/meadow' : '/'
+  // A path that is not a page (including /callback) shows the timer.
+  const path = usePath()
+  const page = PAGES.some((p) => p.to === path) ? path : '/'
 
   const t = useTimer(s, {
     keysEnabled: !settingsOpen && hatched == null,
@@ -1018,6 +1026,8 @@ export default function App() {
 
       {page === '/meadow' ? (
         <MeadowPage t={t} />
+      ) : page === '/closet' ? (
+        <ClosetPage t={t} owned={owned} setOwned={setOwned} worn={worn} setWorn={setWorn} />
       ) : (
         <TimerPage
           t={t}
@@ -1043,6 +1053,8 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
           onClearData={() => {
             t.clearData()
+            setOwned([])
+            setWorn({})
             setTasks([])
             setActiveTaskId(null)
           }}

@@ -19,8 +19,12 @@ there is no server and no database, so it runs on Vercel's free tier.
   animal you have hatched takes turns jumping a fence, and each jump earns
   coins: 1 for a common animal, 3 for a rare, 10 for a legendary, times how
   many of it you have. Coins are earned from focus time, so they keep counting
-  on the Timer page, in another tab, or with the browser closed. They are only
-  saved for now.
+  on the Timer page, in another tab, or with the browser closed.
+- **Closet**: a third page (`/closet`) where you spend coins on accessories and
+  outfits: 19 items over four slots (head, face, neck and body), from a 200-coin
+  bow to a 30,000-coin royal robe. Try anything on before you buy it. One
+  purchase works for every animal, and each species wears its own outfit, shared
+  by all its copies.
 - **History**: a bar chart of completed pomodoros by day (7 days), week
   (8 weeks, Monday to Sunday) or month (6 months), with arrows to look further back.
 - **Tasks**: add tasks with an estimate, pick one, and finished sessions count toward it.
@@ -30,7 +34,7 @@ there is no server and no database, so it runs on Vercel's free tier.
 - Light and dark mode, colours that change with the timer mode, a soft chime,
   the time in the browser tab title, **Space** to start or pause, **Alt+S** to skip.
 
-Everything (settings, tasks, history, animals, coins) is saved in your browser's
+Everything (settings, tasks, history, animals, coins, items and outfits) is saved in your browser's
 local storage. It stays on that browser and device, and is not synced.
 
 ## Run it on your computer
@@ -110,6 +114,8 @@ Things to know:
 | The timer and saved sessions | `src/useTimer.js` |
 | The timer page, tasks, chart, collection and Settings | `src/App.jsx` |
 | The Meadow page | `src/MeadowPage.jsx` |
+| Accessories and outfits: their pixels, prices, and where they sit on each animal | `src/wardrobe.js` |
+| The Closet page | `src/ClosetPage.jsx` |
 | The Spotify bar and playlist list | `src/SpotifyBar.jsx` |
 | How the site talks to Spotify | `src/spotify.js` |
 

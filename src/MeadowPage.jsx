@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Coins, Pause, Play } from 'lucide-react'
 import { ANIMAL_BY_ID, FENCE } from './animals.js'
-import { coinsEarned, coinsPerSecond, jumpOffset, jumpPose, jumpers, runElapsedMs } from './coins.js'
+import { coinBalance, coinsPerSecond, jumpOffset, jumpPose, jumpers, runElapsedMs } from './coins.js'
 import Sprite from './Sprite.jsx'
 import { MODES, formatTime } from './useTimer.js'
 
@@ -67,7 +67,7 @@ export default function MeadowPage({ t }) {
   const active = timer.mode === 'focus' && timer.running
   const now = useFrameNow(active)
   const elapsed = runElapsedMs(timer, now)
-  const coins = coinsBanked + coinsEarned(elapsed, list)
+  const coins = coinBalance(coinsBanked, timer, list, now)
   const reduced = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, [])
   const total = list.reduce((n, j) => n + j.copies, 0)
 

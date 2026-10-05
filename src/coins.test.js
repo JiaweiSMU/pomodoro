@@ -4,6 +4,7 @@ import { ANIMALS, FENCE } from './animals.js'
 import {
   COIN_VALUE,
   JUMP_MS,
+  coinBalance,
   coinsEarned,
   coinsPerSecond,
   jumpOffset,
@@ -104,6 +105,40 @@ test('jumpPose never shows a landing before the first one has paid', () => {
   // Offset 10 s: at 0.5 s the cycle position looks like "just landed", but nothing has landed yet.
   assert.deepEqual(jumpPose(500, 10_000), { phase: 'waiting', p: 0 })
   assert.equal(coinsEarned(500, [jumper(1)]), 0)
+})
+
+test('coinBalance is banked coins plus the landed jumps of the run in progress', () => {
+  const now = 1_000_000
+  const running = { mode: 'focus', running: true, endAt: now + 20 * MIN, totalMs: 25 * MIN, runStartRemainingMs: 25 * MIN }
+  // 5 minutes in with one common: 30 jumps have landed.
+  assert.equal(coinBalance(100, running, [jumper(1)], now), 130)
+  assert.equal(coinBalance(100, { ...running, running: false }, [jumper(1)], now), 100)
+})
+
+test('spending live coins takes banked coins below 0, but the balance stays at 0 or more and never drops', () => {
+  const start = 1_000_000
+  const timer = { mode: 'focus', running: true, endAt: start + 25 * MIN, totalMs: 25 * MIN, runStartRemainingMs: 25 * MIN }
+  const list = [jumper(1)]
+  const banked = 150 - 200 // had 150 banked, bought a 200-coin item 10 minutes into the run
+  assert.equal(coinBalance(banked, timer, list, start + 10 * MIN), 10)
+  let last = 0
+  for (let now = start + 10 * MIN; now <= start + 30 * MIN; now += 1_000) {
+    const balance = coinBalance(banked, timer, list, now)
+    assert.ok(balance >= last, `dropped at ${now - start} ms`)
+    last = balance
+  }
+})
+
+test('banking the run (pause, skip, reset or finish) leaves the balance unchanged', () => {
+  const start = 1_000_000
+  const now = start + 7 * MIN + 4_321
+  const timer = { mode: 'focus', running: true, endAt: start + 25 * MIN, totalMs: 25 * MIN, runStartRemainingMs: 25 * MIN }
+  const list = [jumper(1, 2), jumper(10)]
+  const banked = -40
+  const before = coinBalance(banked, timer, list, now)
+  // What bank() in useTimer.js does before it stops the run.
+  const after = coinBalance(banked + coinsEarned(runElapsedMs(timer, now), list), { ...timer, running: false }, list, now)
+  assert.equal(after, before)
 })
 
 test('FENCE is a 16x16 sprite whose colours are all in its palette', () => {
