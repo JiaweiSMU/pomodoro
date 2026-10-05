@@ -801,7 +801,7 @@ const DRAWN = [
 ]
 
 // Breeds and colour variants reuse another animal's pixels with a new palette.
-const variant = (of, id, name, rarity, pal) => ({ id, name, rarity, pal, px: DRAWN.find((a) => a.id === of).px })
+const variant = (of, id, name, rarity, pal) => ({ id, name, rarity, pal, base: of, px: DRAWN.find((a) => a.id === of).px })
 
 export const ANIMALS = [
   ...DRAWN,
