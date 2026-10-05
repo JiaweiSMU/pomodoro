@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Coins } from 'lucide-react'
 import { ANIMALS, RARITY } from './animals.js'
 import { coinBalance, jumpers } from './coins.js'
@@ -9,10 +10,11 @@ import { ITEMS, ITEM_BY_ID, SLOTS, SLOT_LABEL, wear } from './wardrobe.js'
 const choice = (selected) =>
   `rounded-lg border transition-colors ${selected ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-accent'}`
 
-function Tile({ animal, outfit, name, note, pressed, onClick }) {
+function Tile({ animal, outfit, itemId, name, note, pressed, onClick }) {
   return (
     <button
       type="button"
+      data-item={itemId}
       aria-pressed={pressed}
       onClick={onClick}
       className={`flex w-full flex-col items-center px-2 pb-2 pt-4 text-center ${choice(pressed)}`}
@@ -36,6 +38,7 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
   const [pickedId, setPickedId] = useState(null)
   const [slot, setSlot] = useState('head')
   const [tryingId, setTryingId] = useState(null) // an item being tried on, not saved
+  const previewRef = useRef(null)
 
   const animal = species.find((a) => a.id === pickedId) ?? species[0]
   if (!animal) {
@@ -73,14 +76,21 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
       setWorn(wear(worn, animal.id, slot, itemId))
     } else {
       setTryingId(itemId)
+      // On a phone the grid sits below the preview: bring the preview and Buy bar into view.
+      previewRef.current?.scrollIntoView({ block: 'nearest' })
     }
   }
   const buy = () => {
     if (!trying || owned.includes(trying.id) || balance < trying.price) return
-    spend(trying.price)
-    setOwned([...owned, trying.id])
-    setWorn(wear(worn, animal.id, trying.slot, trying.id))
-    setTryingId(null)
+    // The Buy button unmounts once bought. Commit now and move focus to the bought tile,
+    // or focus falls to <body>, where the Space shortcut would start or pause the timer.
+    flushSync(() => {
+      spend(trying.price)
+      setOwned([...owned, trying.id])
+      setWorn(wear(worn, animal.id, trying.slot, trying.id))
+      setTryingId(null)
+    })
+    document.querySelector(`[data-item="${trying.id}"]`)?.focus()
   }
 
   return (
@@ -107,7 +117,7 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
       </div>
 
       <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-center">
-        <div className="flex flex-col items-center">
+        <div ref={previewRef} className="flex flex-col items-center">
           <div className="flex size-56 items-end justify-center rounded-xl border border-line bg-surface pb-6">
             <Sprite
               sprite={animal}
@@ -116,16 +126,19 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
               label={wearing.length ? `${animal.name} wearing ${wearing.join(', ')}` : animal.name}
             />
           </div>
-          {trying && (
-            <button
-              type="button"
-              onClick={buy}
-              disabled={short > 0}
-              className="key mt-4 h-12 w-full max-w-xs px-3 font-pixel text-xl disabled:opacity-50"
-            >
-              {short > 0 ? `Need ${short.toLocaleString()} more` : `Buy ${trying.name} · ${trying.price.toLocaleString()}`}
-            </button>
-          )}
+          {/* The bar keeps its space when empty, so trying items on never moves the page. */}
+          <div className="mt-4 h-12 w-full">
+            {trying && (
+              <button
+                type="button"
+                onClick={buy}
+                disabled={short > 0}
+                className="key h-12 w-full px-3 font-pixel text-xl disabled:opacity-50"
+              >
+                {short > 0 ? `Need ${short.toLocaleString()} more` : `Buy ${trying.name} · ${trying.price.toLocaleString()}`}
+              </button>
+            )}
+          </div>
         </div>
 
         <div role="group" aria-label="Slots" className="flex w-full max-w-xs flex-col gap-2">
@@ -154,6 +167,7 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
             <Tile
               animal={animal}
               outfit={{ [slot]: item.id }}
+              itemId={item.id}
               name={item.name}
               note={owned.includes(item.id) ? 'Owned' : `${item.price.toLocaleString()} · ${RARITY[item.tier].label}`}
               pressed={preview[slot] === item.id}
