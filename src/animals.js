@@ -810,6 +810,7 @@ export const ANIMALS = [
   variant('dog', 'golden', 'Golden Retriever', 'common', { k: '#7A5320', t: '#F2C36B', b: '#D8963A', w: '#FFF3D6', n: '#2B1D14', p: '#F27A8A', e: EYE }),
   variant('dog', 'black-lab', 'Black Lab', 'common', { k: '#121011', t: '#3E3638', b: '#2A2426', w: '#5A5054', n: '#121011', p: '#F27A8A', e: '#C98A3A' }),
   variant('bunny', 'brown-bunny', 'Brown Bunny', 'common', { k: '#5A3A22', w: '#C49A72', p: '#F2B8A8', n: '#E86A8A', e: EYE }),
+  variant('bunny', 'pink-bunny', 'Pink Bunny', 'legendary', { k: '#A8456E', w: '#FFC4DA', p: '#FF85B3', n: '#E0457E', e: EYE }),
   variant('fox', 'shiba', 'Shiba Inu', 'rare', { k: '#6B3A12', o: '#E8A050', d: '#FFF0DC', w: '#FFF6EA', n: '#2B1D14', e: EYE }),
   variant('fox', 'arctic-fox', 'Arctic Fox', 'rare', { k: '#5A6478', o: '#F4F6FA', d: '#C8D0DC', w: '#FFFFFF', n: '#2B2B33', e: EYE }),
   variant('tiger', 'white-tiger', 'White Tiger', 'legendary', { k: '#2E2A2E', o: '#F4F1EC', d: '#2E2A2E', w: '#FFFFFF', n: '#E8A0A8', e: '#3A7BD5' }),
