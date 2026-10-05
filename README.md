@@ -9,8 +9,8 @@ there is no server and no database, so it runs on Vercel's free tier.
 - **Timer**: Focus, Short break and Long break, each with a length you set
   (1 to 180 minutes) from the stepper under the timer or in Settings. A long
   break is suggested after every 4 focus sessions (also adjustable).
-- **Rewards**: finishing a focus session hatches one of 42 pixel animals
-  (20 common, 15 rare, 7 legendary), from pets and farm animals to wildlife,
+- **Rewards**: finishing a focus session hatches one of 43 pixel animals
+  (20 common, 15 rare, 8 legendary), from pets and farm animals to wildlife,
   including breeds such as the Shiba Inu and Siamese cat. Skipping or resetting
   a focus session hatches nothing. Longer sessions improve the odds of rarer
   animals, and the last session before a long break always hatches a rare or
