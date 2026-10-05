@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY } from './animals.js'
+import ClosetPage from './ClosetPage.jsx'
 import IconButton from './IconButton.jsx'
 import MeadowPage from './MeadowPage.jsx'
 import Sprite from './Sprite.jsx'
@@ -540,14 +541,14 @@ function History({ history }) {
    Hatched animals wandering along the top of the Spotify bar
 ---------------------------------------------------------------------------- */
 
-function BarCritters({ history }) {
+function BarCritters({ history, worn }) {
   const animals = useMemo(
     () => [...new Set(history.map((h) => h.animal))].map((id) => ANIMAL_BY_ID[id]).filter(Boolean),
     [history],
   )
   if (!animals.length) return null
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-full h-8 overflow-hidden">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-full h-10 overflow-hidden">
       {animals.map((animal, i) => (
         // Speed, start point and resting spot are spread out by index so the animals do not move in step.
         <div
@@ -555,7 +556,7 @@ function BarCritters({ history }) {
           className="critter"
           style={{ '--dur': `${16 + ((i * 7) % 13)}s`, '--start': `${-i * 3.7}s`, '--x': `${(i * 37) % 90}%` }}
         >
-          <Sprite sprite={animal} size={32} />
+          <Sprite sprite={animal} size={32} outfit={worn[animal.id]} />
         </div>
       ))}
     </div>
@@ -566,7 +567,7 @@ function BarCritters({ history }) {
    Collection of hatched animals
 ---------------------------------------------------------------------------- */
 
-function Collection({ history }) {
+function Collection({ history, worn }) {
   const counts = useMemo(() => {
     const map = {}
     for (const h of history) map[h.animal] = (map[h.animal] || 0) + 1
@@ -592,10 +593,11 @@ function Collection({ history }) {
             {ANIMALS.filter((a) => a.rarity === rarity).map((animal) => {
               const n = counts[animal.id] || 0
               return (
-                <li key={animal.id} className="flex flex-col items-center text-center">
+                <li key={animal.id} className="flex flex-col items-center pt-3 text-center">
                   <Sprite
                     sprite={animal}
                     size={48}
+                    outfit={worn[animal.id]}
                     silhouette={n === 0}
                     label={n ? animal.name : 'Not found yet'}
                   />
@@ -615,14 +617,14 @@ function Collection({ history }) {
    Hatch reveal
 ---------------------------------------------------------------------------- */
 
-function HatchModal({ hatched, breakLabel, breakRunning, onStartBreak, onClose }) {
+function HatchModal({ hatched, worn, breakLabel, breakRunning, onStartBreak, onClose }) {
   const { animal, isNew, count } = hatched
   return (
     <Modal title={`${animal.name} hatched`} onClose={onClose}>
       <div className="flex flex-col items-center text-center">
-        <div className="relative grid size-40 place-items-center">
+        <div className="relative mt-6 grid size-40 place-items-center">
           <Sprite sprite={EGG} size={128} cracks={CRACKS[3]} className="hatch-egg absolute" />
-          <Sprite sprite={animal} size={160} className="hatch-animal" />
+          <Sprite sprite={animal} size={160} outfit={worn[animal.id]} className="hatch-animal" />
         </div>
         <div className="hatch-text">
           <p className="mt-4 text-sm text-muted">{RARITY[animal.rarity].label}</p>
@@ -774,7 +776,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
       <div className="mt-4 border-t border-line pt-3 text-sm">
         {confirmClear ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1">Delete all sessions, animals, coins and tasks? This cannot be undone.</span>
+            <span className="flex-1">Delete all sessions, animals, coins, items and tasks? This cannot be undone.</span>
             <button type="button" onClick={() => setConfirmClear(false)} className="h-9 rounded-md border border-line px-3">
               Keep
             </button>
@@ -791,7 +793,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
           </div>
         ) : (
           <button type="button" onClick={() => setConfirmClear(true)} className="text-muted underline underline-offset-2 hover:text-ink">
-            Delete all sessions, animals, coins and tasks
+            Delete all sessions, animals, coins, items and tasks
           </button>
         )}
       </div>
@@ -803,7 +805,7 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
    Timer page
 ---------------------------------------------------------------------------- */
 
-function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActiveTaskId }) {
+function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, setActiveTaskId }) {
   const { timer, remainingMs, progress, untouched, cycle, lastRound, history } = t
   const latest = history.length ? ANIMAL_BY_ID[history.at(-1).animal] : null
   const activeTask = tasks.find((task) => task.id === activeTaskId && !task.completed)
@@ -840,7 +842,7 @@ function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActive
                 label={timer.mode === 'focus' ? 'An egg, waiting to hatch' : 'An egg'}
               />
             ) : (
-              <Sprite sprite={latest} size={96} label={latest.name} />
+              <Sprite sprite={latest} size={96} label={latest.name} outfit={worn[latest.id]} />
             )}
             <div
               className="mt-1 flex font-pixel text-7xl leading-none sm:text-8xl"
@@ -928,7 +930,7 @@ function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActive
 
       <div className="min-w-0">
         <History history={history} />
-        <Collection history={history} />
+        <Collection history={history} worn={worn} />
       </div>
     </main>
   )
@@ -937,6 +939,7 @@ function TimerPage({ t, s, setDuration, tasks, setTasks, activeTaskId, setActive
 const PAGES = [
   { to: '/', label: 'Timer' },
   { to: '/meadow', label: 'Meadow' },
+  { to: '/closet', label: 'Closet' },
 ]
 
 function PageNav({ page }) {
@@ -973,9 +976,15 @@ export default function App() {
   const [activeTaskId, setActiveTaskId] = usePersistent('pomodoro.activeTask', null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hatched, setHatched] = useState(null)
+  const [ownedSaved, setOwned] = usePersistent('pomodoro.owned', [])
+  const [wornSaved, setWorn] = usePersistent('pomodoro.worn', {})
+  // Storage can be edited by hand: anything of the wrong shape counts as empty.
+  const owned = Array.isArray(ownedSaved) ? ownedSaved : []
+  const worn = wornSaved && typeof wornSaved === 'object' && !Array.isArray(wornSaved) ? wornSaved : {}
   const sp = useSpotify()
-  // Anything other than /meadow (including /callback) shows the timer.
-  const page = usePath() === '/meadow' ? '/meadow' : '/'
+  // A path that is not a page (including /callback) shows the timer.
+  const path = usePath()
+  const page = PAGES.some((p) => p.to === path) ? path : '/'
 
   const t = useTimer(s, {
     keysEnabled: !settingsOpen && hatched == null,
@@ -1017,11 +1026,14 @@ export default function App() {
       </header>
 
       {page === '/meadow' ? (
-        <MeadowPage t={t} />
+        <MeadowPage t={t} worn={worn} />
+      ) : page === '/closet' ? (
+        <ClosetPage t={t} owned={owned} setOwned={setOwned} worn={worn} setWorn={setWorn} />
       ) : (
         <TimerPage
           t={t}
           s={s}
+          worn={worn}
           setDuration={setDuration}
           tasks={tasks}
           setTasks={setTasks}
@@ -1031,7 +1043,7 @@ export default function App() {
       )}
 
       <SpotifyBar sp={sp} onOpenSettings={() => setSettingsOpen(true)}>
-        <BarCritters history={t.history} />
+        <BarCritters history={t.history} worn={worn} />
       </SpotifyBar>
 
       {settingsOpen && (
@@ -1043,6 +1055,8 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
           onClearData={() => {
             t.clearData()
+            setOwned([])
+            setWorn({})
             setTasks([])
             setActiveTaskId(null)
           }}
@@ -1052,6 +1066,7 @@ export default function App() {
       {hatched && (
         <HatchModal
           hatched={hatched}
+          worn={worn}
           breakLabel={MODES[t.timer.mode]}
           breakRunning={t.timer.running}
           onClose={() => setHatched(null)}

@@ -45,6 +45,12 @@ export function runElapsedMs(timer, now) {
   return Math.max(0, timer.runStartRemainingMs - remaining)
 }
 
+// Coins you can spend right now: banked coins plus the landed jumps of the focus
+// run in progress. It never drops while a run goes on, and banking the run (pause,
+// skip, reset, finish) leaves it unchanged, so spending against it is safe even
+// when the price takes the banked coins below 0.
+export const coinBalance = (banked, timer, list, now) => banked + coinsEarned(runElapsedMs(timer, now), list)
+
 // Where a species with this offset is in its jump cycle at this run time.
 export function jumpPose(elapsedMs, offset) {
   const sinceFirst = elapsedMs - offset

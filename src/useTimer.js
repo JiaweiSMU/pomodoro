@@ -234,6 +234,10 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
     goTo(lastRound ? 'long' : 'short', s.autoBreak)
   }, [timer.mode, timer.totalMs, timer.endAt, volume, goTo, s.autoFocus, s.autoBreak, lastRound, history, setHistory, setCycle, cycle, onFocusDone])
 
+  // Buying in the Closet. Banked coins can dip below 0 during a focus run: the
+  // Closet lets you spend coins the run has earned, and they are banked when it ends.
+  const spend = useCallback((price) => setCoinsBanked((c) => c - price), [setCoinsBanked])
+
   const clearData = useCallback(() => {
     setHistory([])
     setCycle(0)
@@ -298,6 +302,7 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
     lastRound,
     history,
     coinsBanked,
+    spend,
     start,
     pause,
     toggle,
