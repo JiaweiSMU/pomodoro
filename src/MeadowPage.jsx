@@ -28,7 +28,7 @@ function useFrameNow(active) {
 // species lands at the mirror of its spot on the right of the fence.
 const spotX = (i, n) => (n === 1 ? 25 : 6 + (32 * i) / (n - 1))
 
-function Jumper({ jumper, index, count, elapsed, active, reduced }) {
+function Jumper({ jumper, outfit, index, count, elapsed, active, reduced }) {
   const from = spotX(index, count)
   const pose = active ? jumpPose(elapsed, jumpOffset(index, count)) : { phase: 'waiting', p: 0 }
   let x = from
@@ -55,13 +55,13 @@ function Jumper({ jumper, index, count, elapsed, active, reduced }) {
           +{jumper.value * jumper.copies}
         </span>
       )}
-      <Sprite sprite={ANIMAL_BY_ID[jumper.id]} size={SPRITE_PX} />
+      <Sprite sprite={ANIMAL_BY_ID[jumper.id]} size={SPRITE_PX} outfit={outfit} />
       {jumper.copies > 1 && <span className="absolute left-1/2 top-full -translate-x-1/2 text-xs tabular-nums text-muted">×{jumper.copies}</span>}
     </div>
   )
 }
 
-export default function MeadowPage({ t }) {
+export default function MeadowPage({ t, worn }) {
   const { timer, remainingMs, untouched, toggle, history, coinsBanked } = t
   const list = useMemo(() => jumpers(history), [history])
   const active = timer.mode === 'focus' && timer.running
@@ -116,6 +116,7 @@ export default function MeadowPage({ t }) {
           <Jumper
             key={jumper.id}
             jumper={jumper}
+            outfit={worn[jumper.id]}
             index={i}
             count={list.length}
             elapsed={elapsed}

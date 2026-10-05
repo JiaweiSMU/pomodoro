@@ -24,7 +24,7 @@ there is no server and no database, so it runs on Vercel's free tier.
   outfits: 19 items over four slots (head, face, neck and body), from a 200-coin
   bow to a 30,000-coin royal robe. Try anything on before you buy it. One
   purchase works for every animal, and each species wears its own outfit, shared
-  by all its copies.
+  by all its copies. Dressed animals show on every page.
 - **History**: a bar chart of completed pomodoros by day (7 days), week
   (8 weeks, Monday to Sunday) or month (6 months), with arrows to look further back.
 - **Tasks**: add tasks with an estimate, pick one, and finished sessions count toward it.
