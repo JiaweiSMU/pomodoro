@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Heart,
   Minus,
   Moon,
   Pause,
@@ -19,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import { ANIMALS, ANIMAL_BY_ID, CRACKS, EGG, RARITY } from './animals.js'
+import { BOND_LEVELS, bondLevel, bonds, mood } from './buddy.js'
 import ClosetPage from './ClosetPage.jsx'
 import IconButton from './IconButton.jsx'
 import MeadowPage from './MeadowPage.jsx'
@@ -56,9 +58,27 @@ function formatMinutes(min) {
   return m ? `${h} h ${m} min` : `${h} h`
 }
 
+// How the main pet feels, by mood() in buddy.js.
+const MOOD = {
+  happy: 'happy you focused today',
+  ready: 'ready for a focus session',
+  sleepy: 'sleepy after a few days without focus',
+}
+
 /* ----------------------------------------------------------------------------
    Small shared controls
 ---------------------------------------------------------------------------- */
+
+// A main pet's bond: one heart per level in BOND_LEVELS, filled up to `hearts`.
+function Hearts({ hearts, size = 12 }) {
+  return (
+    <span role="img" aria-label={`${hearts} of ${BOND_LEVELS.length} hearts`} className="inline-flex gap-px text-accent">
+      {BOND_LEVELS.map((_, i) => (
+        <Heart key={i} size={size} fill={i < hearts ? 'currentColor' : 'none'} aria-hidden="true" />
+      ))}
+    </span>
+  )
+}
 
 // A number box that tolerates half-typed values and only reports valid ones.
 function NumberField({ value, min, max, onChange, className = '', ...rest }) {
@@ -590,13 +610,15 @@ function BarCritters({ history, worn }) {
    Collection of hatched animals
 ---------------------------------------------------------------------------- */
 
-function Collection({ history, worn }) {
+function Collection({ history, worn, main, setMain }) {
   const counts = useMemo(() => {
     const map = {}
     for (const h of history) map[h.animal] = (map[h.animal] || 0) + 1
     return map
   }, [history])
+  const bond = useMemo(() => bonds(history), [history])
   const found = ANIMALS.filter((a) => counts[a.id]).length
+  const level = main && bondLevel(bond[main.id] || 0)
 
   return (
     <section aria-labelledby="collection-heading" className="mt-12">
@@ -609,23 +631,55 @@ function Collection({ history, worn }) {
         </p>
       </div>
 
+      {main ? (
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+          <Sprite sprite={main} size={48} outfit={worn[main.id]} />
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-x-2 font-medium">
+              Main pet: {main.name} <Hearts hearts={level.hearts} />
+            </p>
+            <p className="text-sm text-muted">
+              {main.name} is {MOOD[mood(history, Date.now())]}.{' '}
+              {level.toNext ? `${plural(level.toNext, 'more session')} to the next heart.` : 'Full bond.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        found > 0 && <p className="mt-2 text-sm text-muted">Pick an animal you have hatched to make it your main pet.</p>
+      )}
+
       {Object.entries(RARITY).map(([rarity, info]) => (
         <div key={rarity} className="mt-4">
           <h3 className="text-sm text-muted">{info.label}</h3>
           <ul className="mt-2 grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6">
             {ANIMALS.filter((a) => a.rarity === rarity).map((animal) => {
               const n = counts[animal.id] || 0
+              if (!n) {
+                return (
+                  <li key={animal.id} className="flex flex-col items-center pt-3 text-center">
+                    <Sprite sprite={animal} size={48} silhouette label="Not found yet" />
+                    <span className="mt-1 text-xs text-muted">???</span>
+                  </li>
+                )
+              }
+              const isMain = animal.id === main?.id
+              const { hearts } = bondLevel(bond[animal.id] || 0)
               return (
-                <li key={animal.id} className="flex flex-col items-center pt-3 text-center">
-                  <Sprite
-                    sprite={animal}
-                    size={48}
-                    outfit={worn[animal.id]}
-                    silhouette={n === 0}
-                    label={n ? animal.name : 'Not found yet'}
-                  />
-                  <span className={`mt-1 text-xs ${n ? 'text-ink' : 'text-muted'}`}>{n ? animal.name : '???'}</span>
-                  {n > 0 && <span className="text-xs tabular-nums text-muted">×{n}</span>}
+                <li key={animal.id}>
+                  <button
+                    type="button"
+                    aria-pressed={isMain}
+                    title={isMain ? `${animal.name} is your main pet. Press again to unpick it.` : `Make ${animal.name} your main pet`}
+                    onClick={() => setMain(isMain ? null : animal.id)}
+                    className={`flex w-full flex-col items-center rounded-lg pb-1 pt-3 text-center ${
+                      isMain ? 'bg-accent-soft' : 'hover:bg-accent-soft/60'
+                    }`}
+                  >
+                    <Sprite sprite={animal} size={48} outfit={worn[animal.id]} />
+                    <span className="mt-1 text-xs text-ink">{animal.name}</span>
+                    <span className="text-xs tabular-nums text-muted">×{n}</span>
+                    {hearts > 0 && <Hearts hearts={hearts} size={10} />}
+                  </button>
                 </li>
               )
             })}
@@ -641,7 +695,8 @@ function Collection({ history, worn }) {
 ---------------------------------------------------------------------------- */
 
 function HatchModal({ hatched, worn, breakLabel, breakRunning, onStartBreak, onClose }) {
-  const { animal, isNew, count } = hatched
+  const { animal, isNew, count, buddy, bond } = hatched
+  const level = buddy && bondLevel(bond)
   return (
     // The click that brings you back to the window would otherwise close it before the animal shows.
     <Modal title={`${animal.name} hatched`} onClose={onClose} closeOnBackdrop={false}>
@@ -654,6 +709,16 @@ function HatchModal({ hatched, worn, breakLabel, breakRunning, onStartBreak, onC
           <p className="mt-4 text-sm text-muted">{RARITY[animal.rarity].label}</p>
           <h2 className="font-pixel text-4xl">{animal.name} hatched</h2>
           <p className="mt-1 text-muted">{isNew ? 'New to your collection.' : `You have ${count} now.`}</p>
+          {buddy && (
+            <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 text-sm">
+              <Hearts hearts={level.hearts} />
+              {BOND_LEVELS.includes(bond)
+                ? `${buddy.name} earned a heart!`
+                : level.toNext
+                  ? `${buddy.name}: ${plural(level.toNext, 'more session')} to the next heart`
+                  : `${buddy.name} has a full bond`}
+            </p>
+          )}
         </div>
         <div className="mt-6 flex w-full flex-col gap-2">
           {!breakRunning && (
@@ -829,9 +894,11 @@ function SettingsModal({ settings, setSettings, setDuration, sp, onClearData, on
    Timer page
 ---------------------------------------------------------------------------- */
 
-function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, setActiveTaskId }) {
+function TimerPage({ t, s, worn, main, setMain, setDuration, tasks, setTasks, activeTaskId, setActiveTaskId }) {
   const { timer, remainingMs, progress, untouched, cycle, lastRound, history } = t
-  const latest = history.length ? ANIMAL_BY_ID[history.at(-1).animal] : null
+  // Shown during breaks: the main pet, or else the latest animal to hatch.
+  const pet = main ?? (history.length ? ANIMAL_BY_ID[history.at(-1).animal] : null)
+  const petMood = mood(history, Date.now())
   const activeTask = tasks.find((task) => task.id === activeTaskId && !task.completed)
   const crackStage = Math.min(3, Math.floor(progress * 4))
 
@@ -841,7 +908,7 @@ function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, set
       ? `Round ${cycle + 1} of ${s.interval}: a rare animal or better`
       : `Round ${cycle + 1} of ${s.interval}`
   } else {
-    caption = latest ? `${latest.name} is keeping you company` : 'Step away for a bit'
+    caption = pet ? `${pet.name} is keeping you company` : 'Step away for a bit'
   }
 
   return (
@@ -858,15 +925,34 @@ function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, set
 
         <div className="mt-8">
           <Ring progress={progress}>
-            {timer.mode === 'focus' || !latest ? (
-              <Sprite
-                sprite={EGG}
-                size={96}
-                cracks={timer.mode === 'focus' ? CRACKS[crackStage] : CRACKS[0]}
-                label={timer.mode === 'focus' ? 'An egg, waiting to hatch' : 'An egg'}
-              />
+            {timer.mode === 'focus' || !pet ? (
+              <div className="relative">
+                <Sprite
+                  sprite={EGG}
+                  size={96}
+                  cracks={timer.mode === 'focus' ? CRACKS[crackStage] : CRACKS[0]}
+                  label={timer.mode === 'focus' ? 'An egg, waiting to hatch' : 'An egg'}
+                />
+                {/* The main pet keeps the egg company: it hops while you focus, and shows its mood otherwise. */}
+                {main && (
+                  <div className="absolute bottom-0 left-full flex flex-col items-center">
+                    {!timer.running && petMood !== 'ready' && (
+                      <span aria-hidden="true" className="mb-2 font-pixel text-lg leading-none text-accent">
+                        {petMood === 'happy' ? <Heart size={14} fill="currentColor" /> : 'zz'}
+                      </span>
+                    )}
+                    <Sprite
+                      sprite={main}
+                      size={40}
+                      outfit={worn[main.id]}
+                      label={timer.running ? `${main.name}, cheering you on` : `${main.name}, ${MOOD[petMood]}`}
+                      className={timer.running ? 'cheer' : ''}
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
-              <Sprite sprite={latest} size={96} label={latest.name} outfit={worn[latest.id]} />
+              <Sprite sprite={pet} size={96} label={pet.name} outfit={worn[pet.id]} />
             )}
             <div
               className="mt-1 flex font-pixel text-7xl leading-none sm:text-8xl"
@@ -954,7 +1040,7 @@ function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, set
 
       <div className="min-w-0">
         <History history={history} worn={worn} />
-        <Collection history={history} worn={worn} />
+        <Collection history={history} worn={worn} main={main} setMain={setMain} />
       </div>
     </main>
   )
@@ -1002,9 +1088,11 @@ export default function App() {
   const [hatched, setHatched] = useState(null)
   const [ownedSaved, setOwned] = usePersistent('pomodoro.owned', [])
   const [wornSaved, setWorn] = usePersistent('pomodoro.worn', {})
+  const [mainId, setMain] = usePersistent('pomodoro.main', null)
   // Storage can be edited by hand: anything of the wrong shape counts as empty.
   const owned = Array.isArray(ownedSaved) ? ownedSaved : []
   const worn = wornSaved && typeof wornSaved === 'object' && !Array.isArray(wornSaved) ? wornSaved : {}
+  const main = typeof mainId === 'string' && Object.hasOwn(ANIMAL_BY_ID, mainId) ? ANIMAL_BY_ID[mainId] : null
   const sp = useSpotify()
   // A path that is not a page (including /callback) shows the timer.
   const path = usePath()
@@ -1012,9 +1100,10 @@ export default function App() {
 
   const t = useTimer(s, {
     keysEnabled: !settingsOpen && hatched == null,
+    buddy: main?.id,
     onFocusDone: (result) => {
       setTasks((list) => list.map((task) => (task.id === activeTaskId ? { ...task, done: task.done + 1 } : task)))
-      setHatched(result)
+      setHatched({ ...result, buddy: main })
     },
   })
 
@@ -1032,7 +1121,7 @@ export default function App() {
     <div className="min-h-dvh pb-32">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-2">
-          <Sprite sprite={EGG} size={32} />
+          <Sprite sprite={main ?? EGG} size={32} outfit={main ? worn[main.id] : undefined} />
           <h1 className="font-pixel text-3xl">Pomodoro</h1>
         </div>
         <PageNav page={page} />
@@ -1052,12 +1141,14 @@ export default function App() {
       {page === '/meadow' ? (
         <MeadowPage t={t} worn={worn} />
       ) : page === '/closet' ? (
-        <ClosetPage t={t} owned={owned} setOwned={setOwned} worn={worn} setWorn={setWorn} />
+        <ClosetPage t={t} owned={owned} setOwned={setOwned} worn={worn} setWorn={setWorn} mainId={main?.id} />
       ) : (
         <TimerPage
           t={t}
           s={s}
           worn={worn}
+          main={main}
+          setMain={setMain}
           setDuration={setDuration}
           tasks={tasks}
           setTasks={setTasks}
@@ -1081,6 +1172,7 @@ export default function App() {
             t.clearData()
             setOwned([])
             setWorn({})
+            setMain(null)
             setTasks([])
             setActiveTaskId(null)
           }}

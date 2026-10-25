@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Coins } from 'lucide-react'
 import { ANIMALS, RARITY } from './animals.js'
+import { topHearts } from './buddy.js'
 import { coinBalance, jumpers } from './coins.js'
 import { Link } from './router.jsx'
 import Sprite from './Sprite.jsx'
@@ -28,19 +29,21 @@ function Tile({ animal, outfit, itemId, name, note, pressed, onClick }) {
 
 // Dress up your animals. Buying spends coins; items you do not own yet can be
 // tried on first. Outfits belong to a species: every copy wears the same one.
-export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
+export default function ClosetPage({ t, owned, setOwned, worn, setWorn, mainId }) {
   const { history, timer, coinsBanked, spend } = t
   const species = useMemo(() => {
     const hatched = new Set(history.map((h) => h.animal))
     return ANIMALS.filter((a) => hatched.has(a.id))
   }, [history])
   const list = useMemo(() => jumpers(history), [history])
+  const hearts = useMemo(() => topHearts(history), [history])
   const [pickedId, setPickedId] = useState(null)
   const [slot, setSlot] = useState('head')
   const [tryingId, setTryingId] = useState(null) // an item being tried on, not saved
   const previewRef = useRef(null)
 
-  const animal = species.find((a) => a.id === pickedId) ?? species[0]
+  // Opens on the main pet, if there is one.
+  const animal = species.find((a) => a.id === pickedId) ?? species.find((a) => a.id === mainId) ?? species[0]
   if (!animal) {
     return (
       <main className="mx-auto max-w-6xl px-4 pt-10 text-center sm:px-6">
@@ -59,7 +62,9 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
   const trying = ITEM_BY_ID[tryingId]
   const preview = trying ? { ...outfit, [trying.slot]: trying.id } : outfit
   const wearing = SLOTS.map((s) => ITEM_BY_ID[preview[s]]?.name).filter(Boolean)
-  const short = trying ? trying.price - balance : 0
+  const short = trying?.price ? trying.price - balance : 0
+  // Bought, or a bond reward some main pet has earned.
+  const has = (item) => owned.includes(item.id) || (item.bond != null && hearts >= item.bond)
 
   const pickAnimal = (id) => {
     setPickedId(id)
@@ -71,7 +76,7 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
   }
   // Owned items (and None) are worn at once; anything else is only tried on.
   const choose = (itemId) => {
-    if (itemId == null || owned.includes(itemId)) {
+    if (itemId == null || has(ITEM_BY_ID[itemId])) {
       setTryingId(null)
       setWorn(wear(worn, animal.id, slot, itemId))
     } else {
@@ -81,7 +86,7 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
     }
   }
   const buy = () => {
-    if (!trying || owned.includes(trying.id) || balance < trying.price) return
+    if (!trying || trying.bond || owned.includes(trying.id) || balance < trying.price) return
     // The Buy button unmounts once bought. Commit now and move focus to the bought tile,
     // or focus falls to <body>, where the Space shortcut would start or pause the timer.
     flushSync(() => {
@@ -128,7 +133,11 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
           </div>
           {/* The bar keeps its space when empty, so trying items on never moves the page. */}
           <div className="mt-4 h-12 w-full">
-            {trying && (
+            {trying?.bond ? (
+              <p className="flex h-12 items-center justify-center rounded-lg border border-line px-3 text-center text-sm text-muted">
+                A main pet with {trying.bond} hearts unlocks this
+              </p>
+            ) : trying && (
               <button
                 type="button"
                 onClick={buy}
@@ -169,7 +178,13 @@ export default function ClosetPage({ t, owned, setOwned, worn, setWorn }) {
               outfit={{ [slot]: item.id }}
               itemId={item.id}
               name={item.name}
-              note={owned.includes(item.id) ? 'Owned' : `${item.price.toLocaleString()} · ${RARITY[item.tier].label}`}
+              note={
+                has(item)
+                  ? 'Owned'
+                  : item.bond
+                    ? `Bond reward · ${item.bond} hearts`
+                    : `${item.price.toLocaleString()} · ${RARITY[item.tier].label}`
+              }
               pressed={preview[slot] === item.id}
               onClick={() => choose(item.id)}
             />

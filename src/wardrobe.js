@@ -14,6 +14,7 @@ const GOLD_D = '#C8961E'
 // Face items are fitted to the eye pixels. Body items repaint the body:
 // paint(x, y, firstRow, lastRow) returns a colour, or null to leave that pixel alone.
 // Order: by slot, then by price. This is the order on the Closet page.
+// A bond reward has `bond` (hearts any main pet must reach) instead of a price, and is never bought.
 export const ITEMS = [
   { id: 'bow', name: 'Bow', slot: 'head', tier: 'common', price: 200, pal: { p: '#F27AB8', P: '#C2457E' }, px: ['p...p', 'ppPpp', 'p...p'] },
   { id: 'beanie', name: 'Beanie', slot: 'head', tier: 'common', price: 300, pal: { k: '#1F3F36', c: '#3F8F7A', C: '#2F6E5E', w: '#F4EFE6' }, px: ['...ww...', '..kcck..', '.kccCck.', 'kcCccCck', 'kwwwwwwk'] },
@@ -32,6 +33,10 @@ export const ITEMS = [
   { id: 'scarf', name: 'Red scarf', slot: 'neck', tier: 'common', price: 300, band: ['#D8434E', '#9E2A35'], charm: [[2, 1, '#D8434E'], [2, 2, '#D8434E'], [3, 1, '#9E2A35']] },
   { id: 'bowtie', name: 'Bow tie', slot: 'neck', tier: 'rare', price: 2000, pal: { r: '#D8434E', R: '#9E2A35' }, px: ['r...r', 'rrRrr', 'r...r'] },
   { id: 'medal', name: 'Gold medal', slot: 'neck', tier: 'legendary', price: 20000, band: ['#3A6FD8', '#1C2F5E'], charm: [[-1, 1, GOLD], [0, 1, GOLD], [-1, 2, GOLD], [0, 2, GOLD_D]] },
+  {
+    id: 'heartscarf', name: 'Heart scarf', slot: 'neck', tier: 'rare', bond: 2, band: ['#F27AB8', '#C2457E'],
+    charm: [[-1, 1, '#E0457E'], [1, 1, '#E0457E'], [-1, 2, '#E0457E'], [0, 2, '#E0457E'], [1, 2, '#E0457E'], [0, 3, '#E0457E']],
+  },
 
   { id: 'sweater', name: 'Striped sweater', slot: 'body', tier: 'common', price: 400, paint: (x, y) => (y % 2 ? '#4A7BD0' : '#EDEFF5') },
   { id: 'raincoat', name: 'Raincoat', slot: 'body', tier: 'common', price: 500, paint: (x, y) => (x === 8 && y % 2 ? '#9C7410' : '#F2C230') },

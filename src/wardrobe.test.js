@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ANIMALS, ANIMAL_BY_ID, EGG, FENCE } from './animals.js'
+import { BOND_LEVELS } from './buddy.js'
 import { FIT, ITEMS, ITEM_BY_ID, SLOTS, TIER_PRICE, dress, eyeBoxes, wear } from './wardrobe.js'
 
 // Colour at sprite pixel (x, y) of a dress() result; y may be above 0.
@@ -146,12 +147,16 @@ test('no neck or no body: those items are left off', () => {
   assert.deepEqual(dress(goat, { body: 'robe' }), dress(goat))
 })
 
-test('items: unique ids, a known slot and tier, a price inside the tier band', () => {
+test('items: unique ids, a known slot and tier, a price inside the tier band or a bond level', () => {
   assert.equal(new Set(ITEMS.map((i) => i.id)).size, ITEMS.length)
   for (const item of ITEMS) {
     assert.ok(SLOTS.includes(item.slot), item.id)
     const band = TIER_PRICE[item.tier]
     assert.ok(band, item.id)
+    if (item.bond) {
+      assert.ok(item.price == null && item.bond >= 1 && item.bond <= BOND_LEVELS.length, item.id)
+      continue
+    }
     assert.ok(item.price >= band[0] && item.price <= band[1], `${item.id} price ${item.price}`)
   }
 })
