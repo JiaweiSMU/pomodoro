@@ -135,7 +135,8 @@ function Segmented({ options, value, onChange, label, size = 'md' }) {
 }
 
 // Native modal dialog: Escape, focus trapping and the backdrop come with it.
-function Modal({ title, onClose, children }) {
+// `closeOnBackdrop={false}` keeps it open when a press lands outside it.
+function Modal({ title, onClose, closeOnBackdrop = true, children }) {
   const ref = useRef(null)
   useEffect(() => {
     if (!ref.current.open) ref.current.showModal()
@@ -150,7 +151,7 @@ function Modal({ title, onClose, children }) {
         onClose()
       }}
       // The content fills the dialog, so a press on the dialog itself is on the backdrop.
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onMouseDown={(e) => closeOnBackdrop && e.target === e.currentTarget && onClose()}
       className="overlay m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-line bg-surface text-ink shadow-2xl backdrop:bg-black/55"
     >
       <div className="p-6">{children}</div>
@@ -620,7 +621,8 @@ function Collection({ history, worn }) {
 function HatchModal({ hatched, worn, breakLabel, breakRunning, onStartBreak, onClose }) {
   const { animal, isNew, count } = hatched
   return (
-    <Modal title={`${animal.name} hatched`} onClose={onClose}>
+    // The click that brings you back to the window would otherwise close it before the animal shows.
+    <Modal title={`${animal.name} hatched`} onClose={onClose} closeOnBackdrop={false}>
       <div className="flex flex-col items-center text-center">
         <div className="relative mt-6 grid size-40 place-items-center">
           <Sprite sprite={EGG} size={128} cracks={CRACKS[3]} className="hatch-egg absolute" />
