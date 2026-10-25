@@ -203,10 +203,15 @@ input[type='checkbox'] {
 @keyframes hop {
   50% { transform: translateY(-2px); }
 }
+/* The main pet hops beside the egg while a focus session runs. */
+.cheer {
+  animation: hop 500ms steps(2) infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .critter,
-  .critter svg {
+  .critter svg,
+  .cheer {
     animation: none !important;
   }
 

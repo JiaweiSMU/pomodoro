@@ -25,6 +25,12 @@ there is no server and no database, so it runs on Vercel's free tier.
   bow to a 30,000-coin royal robe. Try anything on before you buy it. One
   purchase works for every animal, and each species wears its own outfit, shared
   by all its copies. Dressed animals show on every page.
+- **Main pet**: press an animal you have hatched under "Your animals" to make
+  it your main pet. It sits by the egg, keeps you company on breaks and shows
+  in the header. Each focus session finished with it builds its bond: a heart
+  at 5, 15, 30 and 60 sessions, and 2 hearts unlock the Heart scarf in the
+  Closet. Its mood follows your focus: happy after a session today, ready the
+  day after, sleepy after two days without one.
 - **History**: a bar chart of completed pomodoros by day (7 days), week
   (8 weeks, Monday to Sunday) or month (6 months), with arrows to look further back.
 - **Tasks**: add tasks with an estimate, pick one, and finished sessions count toward it.
@@ -34,7 +40,7 @@ there is no server and no database, so it runs on Vercel's free tier.
 - Light and dark mode, colours that change with the timer mode, a soft chime,
   the time in the browser tab title, **Space** to start or pause, **Alt+S** to skip.
 
-Everything (settings, tasks, history, animals, coins, items and outfits) is saved in your browser's
+Everything (settings, tasks, history, animals, main pet, coins, items and outfits) is saved in your browser's
 local storage. It stays on that browser and device, and is not synced.
 
 ## Run it on your computer

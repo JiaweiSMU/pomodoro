@@ -118,10 +118,12 @@ export function chime(kind, volume) {
 ---------------------------------------------------------------------------- */
 
 // `s` is the settings merged with their defaults. `onFocusDone` is called with
-// { animal, isNew, count } when a focus session finishes and hatches an animal.
+// { animal, isNew, count, bond } when a focus session finishes and hatches an
+// animal; `bond` is the main pet's sessions so far, 0 without one.
 // `keysEnabled` turns Space (start/pause) and Alt+S (skip) on or off.
-export function useTimer(s, { onFocusDone, keysEnabled }) {
-  // One entry per finished focus session: { t: time, min: length, animal: id }
+// `buddy` is the main pet's species id, if one is picked (see buddy.js).
+export function useTimer(s, { onFocusDone, keysEnabled, buddy }) {
+  // One entry per finished focus session: { t: time, min: length, animal: id, buddy?: main pet id }
   const [history, setHistory] = usePersistent('pomodoro.history', [])
   // Focus sessions finished since the last long break.
   const [cycle, setCycle] = usePersistent('pomodoro.cycle', 0)
@@ -226,13 +228,16 @@ export function useTimer(s, { onFocusDone, keysEnabled }) {
     const minutes = Math.round(timer.totalMs / 60_000)
     const animal = rollAnimal(minutes, lastRound)
     const owned = history.filter((h) => h.animal === animal.id).length
+    const bond = buddy ? history.filter((h) => h.buddy === buddy).length + 1 : 0
     // Dated when the timer ran out, which may be earlier if the tab was closed.
-    setHistory((list) => [...list, { t: Math.min(timer.endAt, Date.now()), min: minutes, animal: animal.id }])
+    const entry = { t: Math.min(timer.endAt, Date.now()), min: minutes, animal: animal.id }
+    if (buddy) entry.buddy = buddy
+    setHistory((list) => [...list, entry])
     setCycle(lastRound ? 0 : cycle + 1)
-    onFocusDone?.({ animal, isNew: owned === 0, count: owned + 1 })
+    onFocusDone?.({ animal, isNew: owned === 0, count: owned + 1, bond })
     // goTo banks this session's coins, using the animals owned before this one hatched.
     goTo(lastRound ? 'long' : 'short', s.autoBreak)
-  }, [timer.mode, timer.totalMs, timer.endAt, volume, goTo, s.autoFocus, s.autoBreak, lastRound, history, setHistory, setCycle, cycle, onFocusDone])
+  }, [timer.mode, timer.totalMs, timer.endAt, volume, goTo, s.autoFocus, s.autoBreak, lastRound, history, setHistory, setCycle, cycle, onFocusDone, buddy])
 
   // Buying in the Closet. Banked coins can dip below 0 during a focus run: the
   // Closet lets you spend coins the run has earned, and they are banked when it ends.
