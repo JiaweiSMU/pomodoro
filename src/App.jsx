@@ -372,7 +372,16 @@ function buildBuckets(view, page) {
   return buckets
 }
 
-function History({ history }) {
+// The animals hatched in some sessions, one entry per species: [{ animal, n }].
+function tallyAnimals(sessions) {
+  const counts = {}
+  for (const h of sessions) counts[h.animal] = (counts[h.animal] || 0) + 1
+  return Object.entries(counts)
+    .filter(([id]) => ANIMAL_BY_ID[id])
+    .map(([id, n]) => ({ animal: ANIMAL_BY_ID[id], n }))
+}
+
+function History({ history, worn }) {
   const [view, setView] = useState('day')
   const [page, setPage] = useState(0)
   const [hover, setHover] = useState(null)
@@ -391,6 +400,7 @@ function History({ history }) {
         ...b,
         count: sessions.length,
         minutes: sessions.reduce((sum, h) => sum + h.min, 0),
+        animals: tallyAnimals(sessions),
         current: now >= b.start.getTime() && now < b.end.getTime(),
       }
     })
@@ -470,7 +480,9 @@ function History({ history }) {
             <button
               key={b.start.getTime()}
               type="button"
-              aria-label={`${b.full}: ${plural(b.count, 'pomodoro')}, ${formatMinutes(b.minutes)} focused`}
+              aria-label={`${b.full}: ${plural(b.count, 'pomodoro')}, ${formatMinutes(b.minutes)} focused${
+                b.animals.length ? `, hatched ${b.animals.map((a) => `${a.n} ${a.animal.name}`).join(', ')}` : ''
+              }`}
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
@@ -498,14 +510,24 @@ function History({ history }) {
         {tip && (
           <div
             role="status"
-            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-lg"
+            className="pointer-events-none absolute z-10 rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-lg"
             style={{ ...tipX, bottom: Math.round((tip.count / max) * PLOT_HEIGHT) + 62 }}
           >
-            <div className="font-semibold text-ink">{plural(tip.count, 'pomodoro')}</div>
-            <div className="text-muted">
+            <div className="whitespace-nowrap font-semibold text-ink">{plural(tip.count, 'pomodoro')}</div>
+            <div className="whitespace-nowrap text-muted">
               {tip.minutes > 0 ? `${formatMinutes(tip.minutes)} focused, ` : ''}
               {tip.full}
             </div>
+            {tip.animals.length > 0 && (
+              <ul className="mt-2 flex max-w-60 flex-wrap gap-x-2 gap-y-1">
+                {tip.animals.map(({ animal, n }) => (
+                  <li key={animal.id} className="flex items-center gap-0.5 text-xs tabular-nums text-muted">
+                    <Sprite sprite={animal} size={24} outfit={worn[animal.id]} label={animal.name} />
+                    {n > 1 && `×${n}`}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
@@ -931,7 +953,7 @@ function TimerPage({ t, s, worn, setDuration, tasks, setTasks, activeTaskId, set
       </div>
 
       <div className="min-w-0">
-        <History history={history} />
+        <History history={history} worn={worn} />
         <Collection history={history} worn={worn} />
       </div>
     </main>
